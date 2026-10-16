@@ -1,0 +1,1186 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Reportes Metro · i·Co medios</title>
+<!--
+  REPORTES METRO · i·Co medios — v2
+  Captura de datos + Generación de informe PDF (impresión nativa, sin librerías).
+  Ajustes sin programar: ver CONFIG abajo (468, colores, traducción).
+-->
+<style>
+
+  :root{
+    --azul:#005EB8; --azul-medio:#5996D1; --azul-hielo:#EAF2FB; --azul-borde:#CFE0F2;
+    --lima:#C4D600; --lima-osc:#A8B800; --negro:#1A1A1A; --gris:#5B6470; --gris-claro:#9AA3AE;
+    --linea:#E3E8EE; --fondo:#F4F7FA; --blanco:#FFFFFF; --alerta:#D9822B; --alerta-bg:#FCF1E6;
+    --ok:#2E8B57; --radio:14px; --sombra:0 1px 3px rgba(16,42,67,.06),0 6px 20px rgba(16,42,67,.05);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    background:var(--fondo);color:var(--negro);line-height:1.5;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:1080px;margin:0 auto;padding:28px 22px 80px}
+  header.top{display:flex;align-items:center;gap:18px;background:var(--blanco);border-radius:var(--radio);
+    padding:20px 24px;box-shadow:var(--sombra);margin-bottom:8px}
+  header.top img{height:46px;width:auto;display:block}
+  header.top .ht{flex:1}
+  header.top h1{font-size:19px;font-weight:700;letter-spacing:-.01em}
+  header.top p{font-size:13px;color:var(--gris)}
+  .badge-modulo{font-size:11px;font-weight:700;color:var(--azul);background:var(--azul-hielo);
+    border:1px solid var(--azul-borde);padding:5px 11px;border-radius:999px;white-space:nowrap}
+  section.card{background:var(--blanco);border-radius:var(--radio);box-shadow:var(--sombra);padding:24px 26px;margin-top:20px}
+  .sec-head{display:flex;align-items:center;gap:12px;margin-bottom:18px}
+  .sec-num{position:relative;width:30px;height:30px;flex:none;border-radius:7px;background:var(--azul);
+    color:#fff;font-weight:700;font-size:14px;display:flex;align-items:center;justify-content:center}
+  .sec-num::before{content:"";position:absolute;left:-5px;top:4px;bottom:4px;width:3px;
+    border-left:3px solid var(--lima);border-top:3px solid var(--lima);border-bottom:3px solid var(--lima);border-radius:3px 0 0 3px}
+  .sec-head h2{font-size:16px;font-weight:700}
+  .sec-head .hint{font-size:12.5px;color:var(--gris-claro);margin-left:auto;text-align:right}
+  .grid{display:grid;gap:16px 18px}
+  .g-3{grid-template-columns:repeat(3,1fr)}.g-4{grid-template-columns:repeat(4,1fr)}
+  @media(max-width:760px){.g-3,.g-4{grid-template-columns:1fr}}
+  .field label{display:block;font-size:12.5px;font-weight:600;color:var(--gris);margin-bottom:6px}
+  .field label .en{font-weight:400;color:var(--gris-claro);font-size:11.5px}
+  .field input,.field textarea,.field select{width:100%;font-size:15px;padding:11px 13px;border:1.5px solid var(--linea);
+    border-radius:10px;background:#fff;color:var(--negro);transition:.15s;font-family:inherit}
+  .field select{cursor:pointer;appearance:none;-webkit-appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%23005EB8' d='M6 8L0 0h12z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 13px center;padding-right:34px}
+  .field input:focus,.field textarea:focus,.field select:focus{outline:none;border-color:var(--azul);box-shadow:0 0 0 3px rgba(0,94,184,.12)}
+  .field .sub{font-size:11.5px;color:var(--gris-claro);margin-top:5px}
+  .field.calc input{background:var(--azul-hielo);border-color:var(--azul-borde);color:var(--azul);font-weight:700}
+  .calc-box{font-size:12.5px;line-height:1.5;background:var(--azul-hielo);border:1.5px solid var(--azul-borde);border-radius:10px;padding:9px 12px;color:var(--gris)}
+  .calc-box b{color:var(--azul);font-size:13.5px}
+  .calc-box .big{color:var(--azul);font-weight:800;font-size:15px}
+  .hist-vacio{font-size:13px;color:var(--gris);background:var(--azul-hielo);border:1px dashed var(--azul-borde);border-radius:10px;padding:16px 18px;line-height:1.5}
+  .importer{border:1.5px solid var(--azul-borde);background:linear-gradient(135deg,#F4F9FF,#fff)}
+  .imp-head{display:flex;gap:14px;align-items:flex-start;margin-bottom:14px}
+  .imp-ic{width:42px;height:42px;flex:none;border-radius:11px;background:var(--azul);display:flex;align-items:center;justify-content:center}
+  .imp-head h3{font-size:16px;font-weight:800;color:var(--negro);display:flex;align-items:center;gap:9px}
+  .imp-head p{font-size:12.5px;color:var(--gris);margin-top:3px;line-height:1.5;max-width:620px}
+  .imp-tag{font-size:10px;font-weight:700;color:#fff;background:var(--lima);color:#33391A;padding:2px 8px;border-radius:20px;letter-spacing:.04em}
+  .dropz{display:flex;align-items:center;justify-content:center;gap:11px;width:100%;padding:22px;border:2px dashed var(--azul-borde);border-radius:12px;background:#fff;color:var(--azul);font-size:13.5px;font-weight:600;cursor:pointer;transition:.15s;text-align:center}
+  .dropz:hover,.dropz.over{background:var(--azul-hielo);border-color:var(--azul)}
+  .imp-key{margin-top:14px;padding-top:14px;border-top:1px solid var(--azul-borde)}
+  .imp-key label{display:block;font-size:12px;font-weight:700;color:var(--negro);margin-bottom:6px}
+  .imp-key input{flex:1;font-size:14px;padding:10px 12px;border:1.5px solid var(--linea);border-radius:10px;background:#fff;font-family:inherit}
+  .imp-key input:focus{outline:none;border-color:var(--azul);box-shadow:0 0 0 3px rgba(0,94,184,.12)}
+  @keyframes flashfield{0%{background:#FFF7D6;border-color:var(--lima)}100%{background:#fff;border-color:var(--linea)}}
+  .flash{animation:flashfield 1.6s ease-out}
+  .hist-tbl{width:100%;border-collapse:collapse;font-size:12.5px}
+  .hist-tbl th{background:#fff;text-align:left;padding:9px 11px;color:var(--gris);font-weight:700;border-bottom:2px solid var(--linea);font-size:10.5px;text-transform:uppercase;letter-spacing:.04em;white-space:nowrap}
+  .hist-tbl th.n,.hist-tbl td.n{text-align:right;font-variant-numeric:tabular-nums}
+  .hist-tbl td{padding:10px 11px;border-bottom:1px solid var(--linea)}
+  .hist-tbl tr:hover td{background:#FAFCFE}
+  .hist-tbl .cli{font-weight:700;color:var(--negro)}
+  .hist-del{padding:4px 11px;font-size:11px;border:1px solid var(--linea);background:#fff;border-radius:7px;cursor:pointer;color:var(--gris)}
+  .hist-del:hover{border-color:#E0B4B4;color:#C0392B;background:#FDF3F3}
+  .drops{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+  @media(max-width:760px){.drops{grid-template-columns:minmax(0,1fr)}}
+  .drop{border:1.5px dashed var(--azul-borde);border-radius:12px;padding:16px;display:flex;align-items:center;
+    gap:14px;background:#fcfdff;transition:.15s;cursor:pointer;min-width:0;overflow:hidden}
+  .drop:hover{border-color:var(--azul);background:var(--azul-hielo)}
+  .drop.ok{border-style:solid;border-color:var(--lima-osc);background:#fbfdee}
+  .drop .ic{width:40px;height:40px;flex:none;border-radius:9px;background:var(--azul-hielo);display:flex;
+    align-items:center;justify-content:center;color:var(--azul);font-size:18px}
+  .drop.ok .ic{background:var(--lima);color:#3a4500}
+  .drop .dt{flex:1;min-width:0;overflow:hidden}
+  .drop .dt b{font-size:13.5px;display:block}
+  .drop .dt span{font-size:11.5px;color:var(--gris-claro);display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .drop .req{font-size:10px;font-weight:700;color:var(--azul);background:var(--azul-hielo);padding:2px 7px;border-radius:6px}
+  .drop.ok .req{color:var(--lima-osc);background:#f2f6d4}
+  .drop input[type=file]{display:none}
+  .tbl-wrap{overflow-x:auto;border:1px solid var(--linea);border-radius:12px}
+  table{width:100%;border-collapse:collapse;font-size:13.5px;min-width:640px}
+  thead th{background:var(--azul);color:#fff;font-weight:600;font-size:12.5px;text-align:left;padding:11px 13px;white-space:nowrap}
+  thead th.num{text-align:right}
+  tbody td{padding:9px 13px;border-bottom:1px solid var(--linea);vertical-align:middle}
+  tbody tr:last-child td{border-bottom:none}
+  tbody tr.off{background:#fafafa;color:var(--gris-claro)}
+  tbody tr.flag{background:var(--alerta-bg)}
+  td.num{text-align:right;font-variant-numeric:tabular-nums}
+  td.nom input{width:100%;min-width:200px;border:1px solid transparent;border-radius:7px;padding:6px 8px;font-size:13.5px;font-family:inherit;background:transparent}
+  td.nom input:hover{border-color:var(--linea);background:#fff}
+  td.nom input:focus{outline:none;border-color:var(--azul);background:#fff;box-shadow:0 0 0 2px rgba(0,94,184,.1)}
+  .chk{width:18px;height:18px;accent-color:var(--azul);cursor:pointer}
+  .warn-pill{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;color:var(--alerta);
+    background:#fff;border:1px solid #f0d4b4;padding:3px 8px;border-radius:999px;white-space:nowrap}
+  tfoot td{padding:11px 13px;font-weight:700;background:var(--azul-hielo);font-variant-numeric:tabular-nums}
+  .quality{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+  .q{font-size:12px;padding:7px 12px;border-radius:9px;background:var(--azul-hielo);color:var(--azul);font-weight:600}
+  .q.warn{background:var(--alerta-bg);color:var(--alerta)}
+  .cumpl{display:grid;grid-template-columns:1fr 1fr 1.2fr;gap:16px;align-items:start}
+  @media(max-width:760px){.cumpl{grid-template-columns:1fr}}
+  .met{border:1px solid var(--linea);border-radius:14px;padding:16px 18px}
+  .met .lbl{font-size:11.5px;font-weight:700;color:var(--gris);text-transform:uppercase;letter-spacing:.04em}
+  .met .big{font-size:48px;font-weight:800;letter-spacing:-.025em;margin-top:6px;line-height:1}
+  .met .big-in{font-size:48px;font-weight:800;letter-spacing:-.025em;margin-top:6px;line-height:1;width:100%;border:none;border-bottom:1px dashed var(--azul-borde);background:transparent;padding:0 0 2px;color:var(--negro);font-family:inherit}
+  .met .big-in:focus{outline:none;border-bottom:2px solid var(--azul)}
+  .met .u{font-size:12px;color:var(--gris-claro);margin-top:6px}
+  .met.hero{background:var(--azul);border-color:var(--azul)}
+  .met.hero .lbl{color:#bcd9f5}.met.hero .big{color:#fff}.met.hero .pct{color:var(--lima);font-size:54px}.met.hero .u{color:#cfe6fb}
+  .vacio{color:var(--gris-claro);font-size:13.5px;padding:8px 2px}
+  .actions{display:flex;gap:12px;align-items:center;margin-top:26px;flex-wrap:wrap}
+  .btn{font-family:inherit;font-size:14.5px;font-weight:700;padding:13px 22px;border-radius:11px;border:none;cursor:pointer;transition:.15s}
+  .btn-primary{background:var(--azul);color:#fff}
+  .btn-primary:hover{background:#004d99}
+  .btn-primary:disabled{background:#c5d2de;cursor:not-allowed}
+  .btn-ghost{background:#fff;color:var(--azul);border:1.5px solid var(--azul-borde)}
+  .btn-ghost:hover{background:var(--azul-hielo)}
+  .note{font-size:12.5px;color:var(--gris-claro)}
+  .overlay{display:none;position:fixed;inset:0;background:#566;z-index:1000;overflow:auto}
+  .overlay.show{display:block}
+  .preview-bar{position:sticky;top:0;display:flex;gap:12px;align-items:center;justify-content:center;
+    background:#0c2740;padding:12px;box-shadow:0 2px 12px rgba(0,0,0,.3);z-index:5}
+  .preview-bar .info{color:#cfe0f2;font-size:12.5px;margin-right:auto;margin-left:8px}
+  #reporte{width:210mm;margin:22px auto;background:#fff;box-shadow:0 10px 40px rgba(0,0,0,.3)}
+  .page{width:210mm;min-height:297mm;padding:15mm 15mm 12mm;position:relative;background:#fff;display:flex;flex-direction:column}
+  .page+.page{margin-top:22px}
+  .page-body{flex:1;display:flex;flex-direction:column;justify-content:space-between;gap:9px;min-height:0}
+  .r-sec{break-inside:avoid}
+  .r-head{display:flex;align-items:center;gap:14px;border-bottom:2px solid var(--azul);padding-bottom:12px;margin-bottom:6px}
+  .r-head img{height:42px}
+  .r-head .rh{flex:1}
+  .r-head .rh b{display:block;font-size:16px;color:var(--azul)}
+  .r-head .rh span{font-size:11.5px;color:var(--gris)}
+  .r-head .rmeta{text-align:right;font-size:11px;color:var(--gris)}
+  .r-foot{margin-top:auto;border-top:1px solid var(--linea);padding-top:8px;display:flex;justify-content:space-between;font-size:10px;color:var(--gris-claro)}
+  .r-title{font-size:30px;font-weight:800;letter-spacing:-.02em;margin:3px 0 4px;line-height:1.02;color:#fff}
+  .r-sub{font-size:12.5px;color:#cfe2f5;margin:0}
+  .r-hero{display:flex;justify-content:space-between;align-items:center;gap:18px;background:#005EB8;border-radius:14px;padding:20px 24px;position:relative}
+  .r-eyebrow{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#9FC4E8}
+  .r-hero-r{text-align:right;border-left:3px solid var(--lima);padding-left:18px;flex:none;position:relative;z-index:1}
+  .r-hr-v{font-size:34px;font-weight:800;color:var(--lima);line-height:1;letter-spacing:-.01em}
+  .r-hr-l{font-size:10.5px;color:#cfe2f5;text-transform:uppercase;letter-spacing:.06em;margin-top:4px}
+  .r-hr-eq{font-size:9.5px;color:var(--lima);margin-top:5px;font-weight:600;max-width:150px;margin-left:auto}
+  .r-perfil{background:var(--azul-hielo);border:1px solid var(--azul-borde);border-radius:10px;padding:12px 14px}
+  .rp-bar{display:flex;height:14px;border-radius:7px;overflow:hidden;background:#dbe6f2}
+  .rp-prem{background:var(--azul)}.rp-mas{background:var(--lima)}
+  .rp-leg{display:flex;gap:20px;margin-top:9px;font-size:11px;color:var(--gris)}
+  .rp-leg b{color:var(--negro);font-size:12px}
+  .rp-dot{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:6px;vertical-align:middle}
+  .rp-dot.prem{background:var(--azul)}.rp-dot.mas{background:var(--lima)}
+  .rp-txt{font-size:11.5px;color:var(--negro);line-height:1.5;margin-top:9px}
+  /* franja de cifras clave */
+  .r-strip{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+  .r-strip .rs{background:var(--azul-hielo);border:1px solid var(--azul-borde);border-radius:11px;padding:12px 14px;text-align:center}
+  .r-strip .rs .v{font-size:21px;font-weight:800;color:var(--azul);line-height:1;letter-spacing:-.01em}
+  .r-strip .rs .l{font-size:10px;color:var(--gris);margin-top:5px;text-transform:uppercase;letter-spacing:.04em;font-weight:600}
+  /* semáforo de cumplimiento */
+  .cm-pill{display:inline-block;font-size:9.5px;font-weight:700;padding:2px 9px;border-radius:20px;margin-top:7px;text-transform:uppercase;letter-spacing:.05em}
+  .cm-pill.ok{background:var(--lima);color:#2C3406}
+  .cm-pill.warn{background:#FFD24A;color:#5A4500}
+  .cm-pill.bad{background:#FF6B6B;color:#fff}
+  /* estación destacada */
+  .r-highlight{display:flex;gap:14px;align-items:center;background:#F4F9FF;border:1px solid var(--azul-borde);border-left:4px solid var(--lima);border-radius:0 12px 12px 0;padding:13px 18px}
+  .rh-ic{width:42px;height:42px;border-radius:11px;background:var(--lima);display:flex;align-items:center;justify-content:center;flex:none}
+  .rh-ic svg{width:23px;height:23px;fill:#33391A}
+  .rh-l{font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--gris);font-weight:700}
+  .rh-v{font-size:16px;font-weight:800;color:var(--negro);line-height:1.15}
+  .rh-x{font-size:11.5px;color:var(--gris);margin-top:1px}
+  .rh-tag{display:inline-block;margin-left:9px;font-size:9.5px;font-weight:700;color:var(--azul);background:var(--azul-hielo);border:1px solid var(--azul-borde);border-radius:20px;padding:2px 9px;vertical-align:middle;letter-spacing:.02em;text-transform:uppercase}
+  .cuadro-tbl{width:100%;border-collapse:collapse;font-size:12px}
+  .cuadro-tbl th,.cuadro-tbl td{padding:7px 9px;border-bottom:1px solid var(--linea);text-align:left;white-space:nowrap}
+  .cuadro-tbl th.num,.cuadro-tbl td.num{text-align:right}
+  .cuadro-tbl thead th{font-size:11px;color:var(--gris);font-weight:700;background:var(--azul-hielo)}
+  .cuadro-tbl .cq-nom{font-weight:600;color:var(--negro)}
+  .cuadro-tbl input.cq{width:96px;padding:5px 7px;font-size:12px;text-align:right;border:1px solid var(--azul-borde);border-radius:6px;background:#fff}
+  .cuadro-tbl .pos{color:#1E8A4C;font-weight:600}.cuadro-tbl .neg{color:#C0392B;font-weight:600}
+  .cuadro-tbl tfoot td{font-weight:800;background:var(--azul-hielo);border-top:2px solid var(--azul-borde)}
+  .r-block-t{font-size:12.5px;font-weight:700;color:var(--azul);text-transform:uppercase;letter-spacing:.05em;margin:0 0 9px;display:flex;align-items:center;gap:9px}
+  .bt-ic{width:27px;height:27px;flex:none;border-radius:7px;background:var(--azul);display:flex;align-items:center;justify-content:center}
+  .bt-ic svg{width:15px;height:15px;stroke:#fff;fill:none;stroke-width:1.9}
+  .bt-ic svg.bf{stroke:none;fill:#fff;stroke-width:0}
+  .kpis{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+  .kpi{border:1px solid var(--linea);border-radius:12px;padding:14px 16px;background:linear-gradient(180deg,#fbfdff,#fff)}
+  .kpi .kp-h{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:7px}
+  .kpi .kl{font-size:11px;color:var(--gris);font-weight:600}
+  .kpi .kp-ic{width:28px;height:28px;flex:none;border-radius:8px;background:var(--azul-hielo);display:flex;align-items:center;justify-content:center}
+  .kpi .kp-ic svg{width:15px;height:15px;stroke:var(--azul);fill:none;stroke-width:1.8}
+  .kpi .kv{font-size:28px;font-weight:800;color:var(--azul);letter-spacing:-.02em;line-height:1.05}
+  .kpi .ku{font-size:10.5px;color:var(--gris-claro);margin-top:2px}
+  .r-cumpl{display:grid;grid-template-columns:1fr 1fr 1.3fr;gap:10px;margin-top:6px}
+  .rc{border:1px solid var(--linea);border-radius:10px;padding:16px 14px;display:flex;flex-direction:column;justify-content:center}
+  .rc .l{font-size:10.5px;font-weight:700;color:var(--gris);text-transform:uppercase}
+  .rc .v{font-size:42px;font-weight:800;margin-top:4px;line-height:1.04;white-space:nowrap}
+  .rc.hero{background:var(--azul);border-color:var(--azul)}
+  .rc.hero .l{color:#bcd9f5}.rc.hero .v{color:var(--lima);font-size:46px}.rc.hero .x{color:#cfe6fb;font-size:11px;margin-top:3px}
+  .charts2{display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:stretch}
+  .chart-card{border:1px solid var(--linea);border-radius:12px;padding:0;display:flex;flex-direction:column;overflow:hidden;background:linear-gradient(180deg,#fbfdff,#fff)}
+  .chart-card h4{font-size:12px;font-weight:700;color:#fff;background:var(--azul);padding:10px 16px;margin:0;letter-spacing:.01em}
+  .chart-card .chart-body{flex:1;display:flex;flex-direction:column;justify-content:center;padding:16px 16px 14px}
+  .legend{display:flex;gap:14px;flex-wrap:wrap;margin-top:12px;font-size:11.5px;justify-content:center}
+  .legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:middle}
+  /* género estilo figuras */
+  .gender-big{display:flex;gap:10px;justify-content:center}
+  .gbig{flex:1;text-align:center;padding:9px 6px 8px;border-radius:11px}
+  .gbig.m-card{background:rgba(0,94,184,.07)}
+  .gbig.f-card{background:rgba(196,214,0,.16)}
+  .gicon{width:38px;height:38px;margin:0 auto 5px;border-radius:50%;display:flex;align-items:center;justify-content:center}
+  .gicon.m{background:var(--azul)}
+  .gicon.f{background:var(--lima)}
+  .gicon svg{width:21px;height:21px}
+  .gicon.m svg{fill:#fff}
+  .gicon.f svg{fill:#33391A}
+  .gpct{font-size:29px;font-weight:800;color:var(--negro);line-height:1;letter-spacing:-.01em}
+  .glbl{font-size:11.5px;color:var(--gris);margin-top:4px;font-weight:600}
+  .gbar{display:flex;height:11px;border-radius:6px;overflow:hidden;margin-top:16px;border:1px solid #fff}
+  .gbm{background:var(--azul)}
+  .gbf{background:var(--lima)}
+  /* bloque de análisis destacado */
+  .r-anal-box{background:#F4F9FF;border:1px solid var(--azul-borde);border-left:4px solid var(--azul);border-radius:0 12px 12px 0;padding:15px 20px}
+  .r-tbl{width:100%;border-collapse:collapse;font-size:12px}
+  .r-tbl th{background:var(--azul);color:#fff;text-align:left;padding:8px 11px;font-weight:600}
+  .r-tbl th.n,.r-tbl td.n{text-align:right;font-variant-numeric:tabular-nums}
+  .r-tbl td{padding:8px 11px;border-bottom:1px solid var(--linea)}
+  .r-tbl tfoot td{font-weight:700;background:var(--azul-hielo)}
+  .est-wrap{display:flex;gap:16px;align-items:flex-start}
+  .est-half{flex:1}
+  .est-tot2{margin-top:8px;background:var(--azul-hielo);font-weight:700;padding:9px 12px;border-radius:6px;font-size:12px;display:flex;justify-content:space-between;gap:16px}
+  .r-analisis{font-size:12.5px;line-height:1.68;color:#243;white-space:pre-wrap;text-align:justify}
+  .gloss{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .gl{border:1px solid var(--linea);border-radius:9px;padding:10px 12px}
+  .gl b{font-size:12px;color:var(--azul)}
+  .gl p{font-size:10.8px;color:var(--gris);margin-top:3px;line-height:1.4}
+  /* métricas derivadas */
+  .insights{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:6px}
+  .ins{border:1px solid var(--linea);border-radius:12px;padding:13px 14px;background:linear-gradient(180deg,#fbfdff,#fff)}
+  .ins .ic-wrap{width:30px;height:30px;border-radius:8px;background:var(--azul-hielo);display:flex;align-items:center;justify-content:center;margin-bottom:8px}
+  .ins .ic-wrap svg{width:17px;height:17px;stroke:var(--azul);fill:none;stroke-width:1.8}
+  .ins .iv{font-size:24px;font-weight:800;color:var(--azul);letter-spacing:-.02em;line-height:1}
+  .ins .il{font-size:11px;font-weight:700;color:var(--negro);margin-top:5px}
+  .ins .ix{font-size:10px;color:var(--gris);line-height:1.35;margin-top:2px}
+  .ins.acc .iv{color:var(--lima-osc)}.ins.acc .ic-wrap{background:#f4f8d6}.ins.acc .ic-wrap svg{stroke:var(--lima-osc)}
+  /* glosario moderno con iconos */
+  .glist{display:grid;grid-template-columns:1fr 1fr 1fr;gap:9px 14px;margin-top:4px}.gli .glen{font-weight:400;color:var(--gris-claro);font-size:10.5px}.tar-in{width:104px;text-align:right;font-size:12px;padding:3px 6px;border:1px solid var(--linea);border-radius:6px;font-family:inherit}::placeholder{color:#AEB6C1;font-style:italic;opacity:1}input::placeholder,textarea::placeholder{color:#AEB6C1;font-style:italic;opacity:1}
+  .gli{display:flex;gap:11px;align-items:flex-start}
+  .gli .gic{width:30px;height:30px;flex:none;border-radius:8px;background:var(--azul-hielo);display:flex;align-items:center;justify-content:center}
+  .gli .gic svg{width:16px;height:16px;stroke:var(--azul);fill:none;stroke-width:1.8}
+  .gli b{font-size:12px;color:var(--azul);display:block}
+  .gli span{font-size:11px;color:var(--gris);line-height:1.4;display:block;margin-top:2px}
+  @media print{
+    *{-webkit-print-color-adjust:exact !important;print-color-adjust:exact !important}
+    body{background:#fff}
+    body>.wrap{display:none !important}
+    .overlay{position:static;background:#fff;overflow:visible}
+    .preview-bar{display:none !important}
+    #reporte{width:auto;margin:0;box-shadow:none}
+    .page{margin:0 !important;box-shadow:none;page-break-after:always;height:297mm;min-height:297mm;overflow:hidden}
+    .page:last-child{page-break-after:auto}
+    @page{size:A4;margin:0}
+  }
+
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <img src="data:image/png;base64,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xLXXXis++ugj0dDQIGpra8Urr7wizjjjDPv7wYMHi+3bt9vX2NU9SCaT9nMKBALiF7/4hdi9e7eoq6sTW7duFY8++qi44YYbOu3r4YKCJe3NN98sANgD9MYbb+xw7Pr160UsFhOUUntAXXLJJR2Oq6+vF+PGjROUUgFA3H///WnnygY5YP/1r38JQogghIg5c+ZkPf6CCy6wz/HWW2+ltdFZ+9ddd52t7k+YMEHs378/4/Fz584VAGzJ3l3SnnPOOTapciGtnNjq6urEsGHD7N/efffdGY9va2sT06dPt5/Feeedl3b+zu7Be++9Z0vvTM/Q2afDHQVL2h/96Ef2Qxw/frxIJpP2jKzrumhtbRVCCFu6MsZEaWmp2L17txBCiEQikXbcb3/7W7u9iy66SAiRu5S58MILBQARDofF5s2bhaZpoqWlRSSTSZFMJu3Xb775pk3a6667Lu162kMO5J07d4pwOCwopUJRFPH+++8LIUwC6Lqeds2JREKMHTvWtXrcXdLKdu+55x773p199tn2d3LZYBiGSCQSQghzzRsOh+0+vvPOO52eR36+dOlS+zff/e53hRBCxONxoWla2j3wIUTBBldIy6YQAhdffLFt+XVakg3DwNSpUwGYls2JEydiyJAhMAwDiqKAUgpFUSCEwJQpU0AphRACn3/+OQB06kIRllujpqYG//znPwEAc+bMwejRo8EYs8MJOef268mTJ2PEiBEAgLfffhtCCDvksD2ka+OFF15APB6HYRg4++yzceKJJ0LXdaiqaruW5LUrioJLLrmk16KY5P1ZvHgxCCEQQuCGG26wzy9dO4QQKIoCTdMwatQozJ492z7m6aefBpA98ko+5yOOOMKO3lq8eDHWrl2LUChk98HfhphCwbp8nBg1alSHhy4DKwYOHGh/NnDgwDSHvzyOEILBgwcjEomgsbER8Xjcdl+ILO4Z6d756KOPUFdXB8AcpM8++6ztisoExhgopdizZw8aGxsRi8U6dQGtWrXKJsTMmTM79N8JIQRGjx7d6b3KF2SfDx48iA0bNkAIgVgshlNOOaXLoJZZs2bhiSeeAAC8//77ALIHiEh33QknnIBzzz0XL7zwAvbt24czzzwT1113Ha666iqMHz8eQH787P0BRUHazhzq7QdDtuM451AUBYBJSKfPNRMkcbZu3Wr/ftGiRVi0aFFOfT5w4ABaWlps3222fu/YscM+15gxYzq91t7cBytJu2fPHjQ0NAAAqqqqMGjQIACZSSj7PmbMGPuzmpqarMe3x8KFC3HhhRfi7bffRn19Pe666y7ce++9OP/883HrrbfipJNO8uRn7y8oCtL2JZqbmwGYg3j48OGoqqqyN5JngowYKi8vRyQS6bL91tZW+3UoFMpPp/OItrY2O6BDquxdQVVV+3UumxrksqWyshKvvvoq/vd//xe/+93vsGPHDsTjcTz55JNYunQpfv3rX2Pu3LmHPXF90nYBSSRd1/Hd734XP/jBD7o9aDqLPHISVUq03lqz5oJwOAzGGHRdR0NDA1pbWxEMBjtV+Q8ePGi/zjVKTC4RgsEgfvzjH2PevHlYunQpFixYgHfffReapmHevHkYNWoUzjvvvMNaVT58p6su4DSQSKxfvx5AbtKjK8g2RowYYZ/r448/7vQ3Qgh7fd3TkH2qrq5GRUUFAGD37t3YunVr1nW3/Oy9996z2xg3bhyA3MIvJXF1XUdZWRmuuuoqvPXWW/jmN79ph6n+8pe/TOvf4QiftFkgJelJJ52EWCwGQgiWLVuGlpYWEEIyDkI5mLtD6ilTptiDfenSpWlttW+bEIKXX37ZzeV0G4QQGIaBWCyGiRMnghACTdPw9NNPZ7x+2T8hBJ566in7s5kzZ+Z0PklWuW4XQiCZTIJzjrvvvhsVFRUQQmDz5s1oaWmxVerDET5ps0AOzMrKSpxzzjkQQmDXrl34yU9+Yu/CkZvRnZvSO7OsOiFVu/PPPx8DBgwApRQffPABHn30UdvF42xbURS88sorWL58ue1G6ulBKyefq6++2naB3XPPPdi9ezcURbE3dcg/xhgeeughrF27FpRSDB06FOeff35OWwCdRjZN0+xJQdM0RKNRhMNhe4vh4byeBXzSdgopOW6//XbbCHP33Xfj1ltvRX19ve2nlX+MMTQ2Ntp+4M5IJSeFiooKfP/734dhGFBVFfPmzcOiRYvs3U3yb/ny5bjsssugqmraOrsnISePiy++GDNmzICu6zh48CDmzJmDrVu3QlEUu3+KouCvf/0rbrrpJiiKAsMw8Itf/AKxWMyezDJB3qN9+/bhpZdess8r2+Sc47HHHsOePXsghMDxxx+PQCDQqTGwv6NgDVEygALofP3inKG7moGlhMzVgEEpha7rOPbYY/HII4/gyiuvBAD84he/wOOPP47p06dj3LhxCAQCOHToELZs2YI333wT1dXVeOutt7o0vkgf5c0334yXX34Zr776KiiluPzyy3Hfffdh8uTJYIzh/fffx4oVKwAADz74IO666y7E4/GcrqH9+XK5p5l+99hjj+GMM87Ali1bsGbNGkyaNAn//u//ji984QuIx+N44YUX8Oyzz9q/+eEPf5hTpkhd18E5x9/+9jdce+21mDJlCqZOnYqxY8cCAN544w0sWrTInqB+9KMfdfu6+x3yFFmVN8jQuRtvvNEOuXvggQfSvhMiFf724osv2sddcMEFad8JkYpV3bdvnx3HXFVVZYfddWfTwLPPPiuOOeaYTncRARBHHHGEaGhoyKl9GQZYX18v/u3f/i1rmxUVFWLRokUimUyKYDAoAIjZs2d3uN5MkOF/U6dOtdt7/vnnc/qt8/c7duywNy5k+6uurhYPPfRQ2u86Q/v462x/VVVV4oknnsi53f6MgpO0Ulp+8YtftKXBxIkT074DUpJi9OjR+P73vw8AOPHEE9O+cyIcDuOWW25BPB7HwIEDu7Uuki6P888/H9OmTcOTTz6JF198ERs3bkRTUxM45ygrK8P48eNx6qmnYubMmYhEIjlthpcqeCwWw+LFi/H000/jT3/6Ez755BO0traiqqoK06dPxzXXXIMxY8YgHo9j/vz5qKurw7HHHtvhvmQ7BwBcfvnlOPnkkwHADoDIReJKjWDYsGF45pln8Pzzz+OJJ57ABx98gNraWoTDYYwePRozZ87EV7/6VVRVVeXsFpNGp1/+8peYMWMGnn/+eaxbtw6HDh2CoigYPnw4pk6diiuuuALDhg077H20APD/AS58SJzWLkShAAAAAElFTkSuQmCC" alt="i·Co medios">
+    <div class="ht"><h1>Reportes Metro</h1><p>Generador de informes de cierre de campaña · Circuito Digital Metro de Medellín</p></div>
+    <span class="badge-modulo" id="app_ver" title="Versión de la app">v57 · gráficas con eje Y (escala de impresiones)</span>
+  </header>
+
+  <section class="card importer">
+    <div class="imp-head">
+      <div class="imp-ic"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#fff" stroke-width="1.8"><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/><rect x="7" y="8" width="10" height="8" rx="1.5"/></svg></div>
+      <div><h3>Leer de screenshots de Quividi <span class="imp-tag">IA</span></h3>
+        <p>Sube los pantallazos del panel (tarjetas, género, entrega diaria, tabla). La IA lee los números y los pone en los campos. Tú confirmas antes de calcular.</p></div>
+    </div>
+    <label class="dropz" id="dropz" ondragover="event.preventDefault();this.classList.add('over')" ondragleave="this.classList.remove('over')" ondrop="event.preventDefault();this.classList.remove('over');leerScreenshots(event.dataTransfer.files)">
+      <input type="file" id="f_shots" accept="image/*" multiple style="display:none" onchange="leerScreenshots(this.files)">
+      <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="M21 15l-5-5L5 21"/></svg>
+      <span>Arrastra aquí tus screenshots, o haz clic para elegirlos</span>
+    </label>
+    <div style="display:flex;gap:10px;align-items:center;margin-top:11px;flex-wrap:wrap">
+      <button class="btn btn-primary" id="btn_vision" style="padding:9px 16px;font-size:13px" onclick="document.getElementById('f_shots').click()">Subir screenshots</button>
+      <span id="estado_vision" class="note"></span>
+    </div>
+    <div class="imp-key">
+      <label>Tu API key de Gemini <span class="en">· activa la lectura de imágenes y el análisis · funciona con cualquier key</span></label>
+      <div style="display:flex;gap:8px;align-items:center">
+        <input id="f_gemini_key" type="password" placeholder="Pega tu key de Gemini (AIza… o AQ.…)" oninput="guardarKey()">
+        <button class="btn btn-ghost" type="button" style="padding:10px 13px;font-size:12px" onclick="verKey(this)">Ver</button>
+        <button class="btn btn-ghost" type="button" style="padding:10px 13px;font-size:12px" onclick="borrarKey()">Borrar</button>
+      </div>
+      <div class="sub">Se guarda solo en este navegador, nunca dentro del archivo. La consigues gratis en aistudio.google.com/apikey.</div>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="sec-head"><div class="sec-num">1</div><h2>Datos de la campaña</h2><span class="hint">Los días se calculan solos con las fechas</span></div>
+    <div class="grid g-3">
+      <div class="field"><label>Cliente / Anunciante</label><input id="f_cliente" type="text" placeholder="Escribe el nombre del cliente" oninput="recalcular()"></div>
+      <div class="field"><label>Nombre de la campaña</label><input id="f_campana" type="text" placeholder="Escribe el nombre de la campaña" oninput="recalcular()"></div>
+      <div class="field"><label>Unidades comerciales <span class="en">· pantallas / Megamupis</span></label>
+        <input id="f_unidades" type="number" min="1" step="1" placeholder="Número de pantallas o Megamupis" oninput="recalcular()"><div class="sub">Un Megamupi de doble pantalla cuenta como 1.</div></div>
+      <div class="field"><label>Fecha de inicio</label><input id="f_inicio" type="date" oninput="recalcular()"></div>
+      <div class="field"><label>Fecha de cierre</label><input id="f_fin" type="date" oninput="recalcular()"></div>
+      <div class="field calc"><label>Días de campaña <span class="en">· automático</span></label><input id="f_dias" type="text" readonly placeholder="—"></div>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="sec-head"><div class="sec-num">2</div><h2>Indicadores principales</h2><span class="hint">Los copias de las tarjetas de Quividi</span></div>
+    <div class="grid g-3">
+      <div class="field"><label>Emisiones <span class="en">· Total plays</span></label><input id="k_plays" type="text" placeholder="76.400" oninput="recalcular()"></div>
+      <div class="field"><label>Impresiones <span class="en">· Impressions</span></label><input id="k_impr" type="text" placeholder="1.490.000" oninput="recalcular()"></div>
+      <div class="field"><label>Permanencia <span class="en">· Avg. dwell time</span></label><input id="k_dwell" type="text" placeholder="9,10" oninput="recalcular()"></div>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="sec-head"><div class="sec-num">3</div><h2>Archivos de Quividi</h2><span class="hint">Botón <b>CSV</b> de cada widget en Quividi</span></div>
+    <div class="drops">
+      <label class="drop" id="drop_content"><div class="ic">▦</div><div class="dt"><b>Contenido por referencia</b><span>Footfall impressions per content · obligatorio</span></div><span class="req">Requerido</span><input type="file" accept=".csv,.xlsx,.xls,.xlsm,text/csv" onchange="cargarContent(this)"></label>
+      <label class="drop" id="drop_gender"><div class="ic">◑</div><div class="dt"><b>Género</b><span>Gender split · recomendado</span></div><span class="req">Opcional</span><input type="file" accept=".csv,.xlsx,.xls,.xlsm,text/csv" onchange="cargarGenero(this)"></label>
+      <label class="drop" id="drop_diario"><div class="ic">▥</div><div class="dt"><b>Entrega por día</b><span>Dashboard DÍAS · plays/impresiones por día</span></div><span class="req">Opcional</span><input type="file" accept=".csv,.xlsx,.xls,.xlsm,text/csv" onchange="cargarDiario(this)"></label>
+      <label class="drop" id="drop_extra"><div class="ic">▤</div><div class="dt"><b>Entrega por hora</b><span>Dashboard HORAS · plays/impresiones por franja</span></div><span class="req">Opcional</span><input type="file" accept=".csv,.xlsx,.xls,.xlsm,text/csv" onchange="cargarHora(this)"></label>
+    </div>
+    <p class="note" style="margin-top:14px">La app lee archivos <b>CSV</b> y <b>Excel</b> (.xlsx, .xls). Exporta desde Quividi en el formato que prefieras.</p>
+  </section>
+
+  <section class="card" id="sec_cuadro" style="display:none">
+    <div class="sec-head"><div class="sec-num">4</div><h2>Cuadro de referencias</h2><span class="hint">Edita los nombres y desmarca lo que no quieras incluir</span></div>
+    <div class="tbl-wrap"><table id="tabla">
+      <thead><tr><th style="width:42px">Incluir</th><th>Referencia</th><th class="num">Emisiones</th><th class="num">Impresiones</th><th style="width:140px">Calidad</th></tr></thead>
+      <tbody id="tbody"></tbody>
+      <tfoot><tr><td></td><td>Total incluido</td><td class="num" id="t_plays">—</td><td class="num" id="t_impr">—</td><td></td></tr></tfoot>
+    </table></div>
+    <div class="quality" id="quality"></div>
+  </section>
+
+  
+
+  <section class="card">
+    <div class="sec-head"><div class="sec-num">5</div><h2>Cumplimiento de emisiones</h2><span class="hint">468 salidas/día × unidades × días</span></div>
+    <div id="cumpl_vacio" class="vacio">Completa unidades, fechas y carga el CSV de contenido para ver el cumplimiento.</div>
+    <div class="cumpl" id="cumpl" style="display:none">
+      <div class="met"><div class="lbl">Garantizado</div><input class="big-in" id="c_prom" type="text" inputmode="numeric" value="—" oninput="editProm()"><div class="u">salidas garantizadas · editable</div></div>
+      <div class="met"><div class="lbl">Entregado</div><div class="big" id="c_ent">—</div><div class="u">reproducciones reales</div></div>
+      <div class="met hero"><div class="lbl">Cumplimiento</div><div class="big pct" id="c_pct">—</div><div class="u" id="c_extra">—</div></div>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="sec-head"><div class="sec-num">6</div><h2>Análisis</h2><span class="hint">Borrador automático · edítalo a tu gusto</span></div>
+    <div class="field"><textarea id="f_analisis" rows="7" placeholder="Pulsa “Generar análisis con IA” o se genera un borrador automático cuando hay datos. Puedes editarlo antes del PDF."></textarea>
+      <div class="sub">El análisis con IA usa el experto en DOOH del circuito. La IA solo redacta; los números los calcula la app. Pega tu key de Gemini arriba para activarlo.</div></div>
+    <div style="display:flex;gap:10px;align-items:center;margin-top:14px;flex-wrap:wrap">
+      <button class="btn btn-primary" id="btn_ia" style="padding:9px 16px;font-size:13px" onclick="generarAnalisisIA()">Generar análisis con IA</button>
+      <button class="btn btn-ghost" style="padding:9px 16px;font-size:13px" onclick="generarAnalisis(true)">Borrador sin IA</button>
+      <span id="estado_ia" class="note"></span>
+    </div>
+  </section>
+
+  <div class="actions">
+    <button class="btn btn-primary" id="btn_pdf" disabled onclick="abrirInforme()">Generar informe PDF</button>
+    <button class="btn btn-ghost" onclick="limpiarTodo()">Limpiar todo</button>
+    <span class="note" id="estado">Listo para capturar datos.</span>
+  </div>
+</div>
+
+<div class="overlay" id="overlay">
+  <div class="preview-bar">
+    <span class="info">Vista previa — “Descargar PDF” genera el A4 perfecto sin configurar nada</span>
+    <button class="btn btn-ghost" onclick="cerrarInforme()" style="padding:9px 16px;font-size:13px">Volver a editar</button>
+    <button class="btn btn-ghost" onclick="window.print()" style="padding:9px 16px;font-size:13px">Imprimir</button>
+    <button class="btn btn-primary" onclick="descargarPDF(this)" style="padding:9px 18px;font-size:13px">Descargar PDF</button>
+  </div>
+  <div id="reporte"></div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+
+var CONFIG={SALIDAS_DIA_UNIDAD:468,FLAG_PLAYS_MIN:500,FLAG_RATIO:0.01,
+  TARIFAS:{MM:4500000,AA:10500000,AAA:15000000},
+  GEMINI_KEY:'',                                            /* la key se pega en la app (se guarda en tu navegador, no aquí) */
+  GEMINI_MODELS:['gemini-3.6-flash','gemini-3.5-flash-lite'], /* prueba en orden hasta que uno responda. Agrega/quita modelos aquí. */
+  COLOR:{azul:'#005EB8',medio:'#5996D1',lima:'#C4D600',linea:'#E3E8EE',gris:'#5B6470'},
+  EQUIV_REF:45000,EQUIV_NOMBRE:'estadio Atanasio Girardot'};
+CONFIG.CIRCUITO=[{n:"ESTRELLA",t:"PG",e:1,i:401729,tar:10500000},{n:"SABANETA",t:"MM",e:3,i:113296,tar:4500000},{n:"ITAGUI",t:"MM",e:2,i:116829,tar:2400000},{n:"ENVIGADO",t:"AAA",e:null,i:null,tar:15000000},{n:"AYURA",t:"MM",e:2,i:135360,tar:4500000},{n:"AGUACATALA",t:"PG",e:2,i:140610,tar:10500000},{n:"POBLADO",t:"AAA",e:null,i:null,tar:15000000},{n:"INDUSTRIALES",t:"AAA",e:2,i:94158,tar:15000000},{n:"INDUSTRIALES BUSES",t:"MM",e:2,i:94654,tar:4500000},{n:"EXPOSICIONES",t:"MM",e:2,i:116388,tar:4500000},{n:"SAN ANTONIO OCCIDENTAL",t:"PG",e:null,i:null,tar:10500000},{n:"SAN ANTONIO ORIENTAL",t:"AAA",e:null,i:null,tar:15000000},{n:"SAN ANTONIO",t:"AAA",e:2,i:145637,tar:15000000},{n:"SAN ANTONIO TRANVIA",t:"MM",e:2,i:116877,tar:4500000},{n:"BERRIO",t:"PG",e:null,i:null,tar:10500000},{n:"HOSPITAL",t:"PG",e:null,i:null,tar:10500000},{n:"UNIVERSIDAD",t:"MM",e:2,i:114768,tar:4500000},{n:"CARIBE",t:"PG",e:2,i:136423,tar:10500000},{n:"ACEVEDO",t:"PG",e:2,i:123433,tar:10500000},{n:"ACEVEDO LINEA K",t:"MM",e:null,i:null,tar:4500000},{n:"ACEVEDO LINEA P",t:"MM",e:null,i:null,tar:4500000},{n:"MADERA",t:"MM",e:2,i:116148,tar:4500000},{n:"BELLO",t:"PG",e:2,i:114358,tar:10500000},{n:"NIQUIA MEZANINE",t:"PG",e:null,i:null,tar:10500000},{n:"NIQUIA PLATAFORMA",t:"AAA",e:null,i:null,tar:8000000},{n:"ESTADIO",t:"PG",e:2,i:167011,tar:10500000},{n:"FLORESTA",t:"MM",e:2,i:116939,tar:4500000},{n:"SAN JAVIER",t:"PG",e:null,i:null,tar:10500000}];
+var STATE={filas:[],genero:null,diario:null,otros:{},logo:document.querySelector('header.top img').src};
+
+function parseNum(raw){
+  if(raw==null) return NaN;
+  var s=String(raw).trim().replace(/\s+/g,'').replace(/["']/g,'');
+  if(s===''||s==='-') return NaN;
+  var mult=1;
+  if(/m$/i.test(s)){mult=1e6;s=s.replace(/m$/i,'');} else if(/k$/i.test(s)){mult=1e3;s=s.replace(/k$/i,'');}
+  var hd=s.indexOf('.')>=0,hc=s.indexOf(',')>=0;
+  if(hd&&hc){if(s.lastIndexOf(',')>s.lastIndexOf('.')){s=s.replace(/\./g,'').replace(',','.');}else{s=s.replace(/,/g,'');}}
+  else if(hc){if(/^\d{1,3}(,\d{3})+$/.test(s)){s=s.replace(/,/g,'');}else{s=s.replace(',','.');}}
+  else if(hd){if(/^\d{1,3}(\.\d{3})+$/.test(s)){s=s.replace(/\./g,'');}}
+  var n=parseFloat(s);return isNaN(n)?NaN:n*mult;
+}
+function agrupar(s){return s.replace(/\B(?=(\d{3})+(?!\d))/g,'.');}            /* 42120 -> 42.120 */
+function fmt(n){if(isNaN(n))return '—';var neg=n<0;return (neg?'-':'')+agrupar(String(Math.round(Math.abs(n))));}
+function fmt1(n){if(isNaN(n))return '—';var neg=n<0;n=Math.abs(n);var r=Math.round(n*10)/10,ent=Math.floor(r),dec=Math.round((r-ent)*10);if(dec>=10){ent+=1;dec=0;}return (neg?'-':'')+agrupar(String(ent))+','+dec;}
+function fmtCOP(n){if(isNaN(n))return '—';return '$'+agrupar(String(Math.round(n)));}
+function num(id){var el=document.getElementById(id);return el?parseNum(el.value):NaN;}
+function metricas(){
+  var impr=num('k_impr'),views=num('k_views'),plays=num('k_plays'),tarifa=num('f_tarifa'),dias=getDias(),un=parseInt(document.getElementById('f_unidades').value,10);
+  var valorTarifa=(tarifa>0&&un>0&&dias>0)?tarifa*un*(dias/30):null;
+  var sel=document.getElementById('f_tipo');
+  return {
+    impr:impr, views:views, plays:plays, dias:dias,
+    alcance:isNaN(views)?null:views,
+    frecuencia:(!isNaN(impr)&&views>0)?impr/views:null,
+    imprDia:(!isNaN(impr)&&dias>0)?impr/dias:null,
+    valorTarifa:valorTarifa,
+    cpm:(impr>0&&valorTarifa)?valorTarifa/impr*1000:null,
+    costoAlcance:(views>0&&valorTarifa)?valorTarifa/views:null,
+    tipo:sel?sel.value:'custom'
+  };
+}
+function updateTarifaLabels(){
+  var custom=document.getElementById('f_tipo').value==='custom';
+  var lbl=document.getElementById('lbl_tarifa'),sub=document.getElementById('sub_tarifa');
+  if(custom){lbl.innerHTML='Tarifa mensual de lista <span class="en">· paquete completo (COP)</span>';sub.textContent='Mensual de lista de TODOS los elementos juntos, no lo que pagó el cliente.';}
+  else{lbl.innerHTML='Tarifa mensual por unidad <span class="en">· COP</span>';sub.textContent='Tarifa de lista de una sola pantalla, no lo que pagó el cliente.';}
+}
+function setTarifa(){var t=document.getElementById('f_tipo').value;if(t!=='custom'&&CONFIG.TARIFAS[t]){document.getElementById('f_tarifa').value=agrupar(String(CONFIG.TARIFAS[t]));}updateTarifaLabels();recalcular();}
+function onTarifaEdit(){document.getElementById('f_tipo').value='custom';updateTarifaLabels();recalcular();}
+
+/* iconos SVG (stroke, sin librería) */
+var ICONS={
+  repeat:'<path d="M17 2l4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="M7 22l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/>',
+  group:'<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
+  coin:'<circle cx="12" cy="12" r="9"/><path d="M9.5 9.5h4a2 2 0 0 1 0 4h-4M9.5 11.5h5M12 7v10"/>',
+  cal:'<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>',
+  play:'<polygon points="6 4 20 12 6 20 6 4"/>',
+  eye:'<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>',
+  user:'<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>',
+  clock:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+  target:'<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5"/>',
+  monitor:'<rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/>',
+  bars:'<path d="M3 21h18"/><path d="M6 21V11"/><path d="M11 21V5"/><path d="M16 21v-7"/><path d="M21 21V8"/>',
+  doc:'<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 13h6M9 17h4"/>',
+  book:'<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>'
+};
+function ico(n){return '<svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round">'+(ICONS[n]||'')+'</svg>';}
+function limpiarNombre(raw){
+  var s=String(raw||'');
+  s=s.replace(/^\s*\d{5,}[_\-\s]+/,'');
+  s=s.replace(/[_\-\s]*\d{3,4}\s*[xX]\s*\d{3,4}\s*(px)?/g,'');
+  s=s.replace(/[_\-\s]*[A-Za-z]{3,4}\.?\s?\d{1,2}\s*$/,'');
+  s=s.replace(/[_\-\s]*Megamupis?\b/gi,'');
+  s=s.replace(/_+/g,' ').replace(/\s{2,}/g,' ').replace(/[\s_\-]+$/,'').trim();
+  return s||String(raw||'').trim();
+}
+function parseCSV(t){
+  t=t.replace(/^\uFEFF/,'');
+  var L=t.split(/\r\n|\n|\r/).filter(function(l){return l.trim()!=='';});
+  if(!L.length) return [];
+  var cand=[';','\t',','],sep=',',best=-1;
+  cand.forEach(function(c){var n=L[0].split(c).length;if(n>best){best=n;sep=c;}});
+  function fila(l){var o=[],c='',q=false;for(var i=0;i<l.length;i++){var ch=l[i];
+    if(ch==='"'){if(q&&l[i+1]==='"'){c+='"';i++;}else q=!q;}
+    else if(ch===sep&&!q){o.push(c);c='';}else c+=ch;}o.push(c);return o.map(function(x){return x.trim();});}
+  return L.map(fila);
+}
+/* lector universal: CSV (texto) o Excel (.xlsx/.xls vía SheetJS) -> filas [[]] */
+function leerArchivo(file,cb){
+  var nombre=(file.name||'').toLowerCase(),esExcel=/\.(xlsx|xlsm|xlsb|xls)$/.test(nombre);
+  var rd=new FileReader();
+  rd.onerror=function(){estado('No pude leer el archivo.',true);};
+  if(esExcel){
+    if(typeof XLSX==='undefined'){estado('El lector de Excel no cargó. Usa CSV o recarga la página.',true);return;}
+    rd.onload=function(e){try{
+      var wb=XLSX.read(new Uint8Array(e.target.result),{type:'array'});
+      var ws=wb.Sheets[wb.SheetNames[0]];
+      var rows=XLSX.utils.sheet_to_json(ws,{header:1,raw:false,defval:''});
+      rows=rows.map(function(r){return r.map(function(c){return c==null?'':String(c).trim();});})
+               .filter(function(r){return r.some(function(c){return c!=='';});});
+      cb(rows);
+    }catch(err){estado('No pude leer el Excel: '+err.message,true);}};
+    rd.readAsArrayBuffer(file);
+  }else{
+    rd.onload=function(e){try{cb(parseCSV(e.target.result));}catch(err){estado('No pude leer el CSV: '+err.message,true);}};
+    rd.readAsText(file,'UTF-8');
+  }
+}
+/* normaliza fechas (ISO, dd/mm/yyyy CO, o serial de Excel ya formateado) */
+function parseFecha(s){
+  s=String(s||'').trim();var m;
+  if(/^\d{4}-\d{1,2}-\d{1,2}/.test(s)){var p=s.slice(0,10).split('-');return new Date(+p[0],+p[1]-1,+p[2]);}
+  if((m=s.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})/))){var y=+m[3];if(y<100)y+=2000;return new Date(y,+m[2]-1,+m[1]);}
+  var d=new Date(s);return isNaN(d.getTime())?null:d;
+}
+function etiquetaFecha(s){var d=parseFecha(s);if(!d)return String(s).slice(0,5);var dd=('0'+d.getDate()).slice(-2),mm=('0'+(d.getMonth()+1)).slice(-2);return dd+'/'+mm;}
+function cargarContent(input){
+  var f=input.files[0];if(!f)return;
+  leerArchivo(f,function(rows){
+    var idx=detCols(rows);
+    if(idx.headerRow<0){estado('No reconocí las columnas. ¿Es el archivo de contenido?',true);return;}
+    var filas=[];
+    for(var r=idx.headerRow+1;r<rows.length;r++){
+      var row=rows[r],nc=(row[idx.content]||'').trim();
+      if(!nc||/^total/i.test(nc))continue;
+      var pl=parseNum(row[idx.plays]),im=parseNum(row[idx.impr]),pe=idx.perm>=0?parseNum(row[idx.perm]):NaN,ta=idx.tar>=0?parseNum(row[idx.tar]):NaN,ga=idx.gar>=0?parseNum(row[idx.gar]):NaN,te=idx.tipo>=0?String(row[idx.tipo]||'').trim():'';
+      if(isNaN(pl)&&isNaN(im))continue;
+      var sus=!isNaN(im)&&(pl>=CONFIG.FLAG_PLAYS_MIN)&&(!(im>=pl*CONFIG.FLAG_RATIO));
+      filas.push({crudo:nc,nombre:limpiarNombre(nc),plays:pl||0,impr:im||0,perm:isNaN(pe)?null:pe,tarifa:isNaN(ta)?null:ta,garant:isNaN(ga)?null:ga,tipoElem:te,incluir:!sus,flag:sus});
+    }
+    if(!filas.length){estado('El archivo se leyó pero no hallé filas de contenido.',true);return;}
+    STATE.filas=filas;marcarDrop('drop_content',f.name);pintarTabla();generarAnalisis();recalcular();
+    estado('Cargué '+filas.length+' referencias.');
+  });
+}
+function detCols(rows){
+  var R={headerRow:-1,content:-1,plays:-1,impr:-1,perm:-1,tar:-1,gar:-1,tipo:-1};
+  var claveCont=['content','contenido','referencia','reference','media','creative'];
+  var claveContFb=['site','sitio','pantalla','estacion','estación','nombre','name'];
+  function metrica(c){return (c.indexOf('play')>=0||c.indexOf('reproduc')>=0||c.indexOf('spot')>=0||c.indexOf('impres')>=0||c.indexOf('impression')>=0||c.indexOf('footfall')>=0)&&c.indexOf('1000')<0;}
+  for(var r=0;r<Math.min(rows.length,12);r++){
+    var low=rows[r].map(function(c){return (c==null?'':String(c)).toLowerCase();});
+    var ci=low.findIndex(function(c){return claveCont.some(function(k){return c.indexOf(k)>=0;});});
+    if(ci<0)ci=low.findIndex(function(c){return claveContFb.some(function(k){return c.indexOf(k)>=0;});});
+    var hayMetrica=low.some(function(c,i){return i!==ci&&metrica(c);});
+    if(ci>=0&&hayMetrica){
+      R.headerRow=r;R.content=ci;
+      low.forEach(function(c,i){
+        if(R.plays<0&&(c.indexOf('play')>=0||c.indexOf('reproduc')>=0||c.indexOf('spot')>=0)&&c.indexOf('1000')<0&&c.indexOf('garant')<0&&c.indexOf('guarant')<0&&c.indexOf('promet')<0)R.plays=i;
+        if(R.impr<0&&(c.indexOf('impres')>=0||c.indexOf('impression')>=0||c.indexOf('footfall')>=0)&&c.indexOf('1000')<0)R.impr=i;
+        if(R.perm<0&&(c.indexOf('presence')>=0||c.indexOf('dwell')>=0||c.indexOf('permanen')>=0||c.indexOf('presencia')>=0))R.perm=i;
+        if(R.tar<0&&(c.indexOf('tarifa')>=0||c.indexOf('tariff')>=0||c.indexOf('rate')>=0)&&c.indexOf('cpm')<0&&c.indexOf('cpi')<0&&c.indexOf('1000')<0&&c.indexOf('mil')<0&&c.indexOf('impres')<0)R.tar=i;
+        if(R.gar<0&&(c.indexOf('garant')>=0||c.indexOf('guarant')>=0)&&c.indexOf('1000')<0)R.gar=i;
+        if(R.tipo<0&&(c.indexOf('elemento')>=0||c.indexOf('tipo')>=0))R.tipo=i;
+      });
+      break;
+    }
+  }return R;
+}
+function esMale(s){s=(s||'').toLowerCase();return (s.indexOf('male')>=0&&s.indexOf('female')<0)||s.indexOf('hombre')>=0||s.indexOf('masculin')>=0;}
+function esFemale(s){s=(s||'').toLowerCase();return s.indexOf('female')>=0||s.indexOf('mujer')>=0||s.indexOf('femenin')>=0;}
+function detectarGenero(rows){
+  if(!rows||!rows.length)return null;
+  /* 1) formato ANCHO: una fila-encabezado con columnas de hombre y mujer, valores debajo */
+  for(var r=0;r<Math.min(rows.length,8);r++){
+    var mi=-1,fi=-1;
+    rows[r].forEach(function(c,i){if(mi<0&&esMale(c))mi=i;if(fi<0&&esFemale(c))fi=i;});
+    if(mi>=0&&fi>=0){
+      for(var k=r+1;k<rows.length;k++){
+        var male=parseNum(rows[k][mi]),female=parseNum(rows[k][fi]);
+        if(!isNaN(male)||!isNaN(female))return {male:male||0,female:female||0};
+      }
+    }
+  }
+  /* 2) formato LARGO: una columna con etiquetas (Hombre/Mujer) y otra con números */
+  var male=0,female=0,hit=false;
+  for(var r=0;r<rows.length;r++){
+    var lblIdx=-1;rows[r].forEach(function(c,i){if(lblIdx<0&&(esMale(c)||esFemale(c)))lblIdx=i;});
+    if(lblIdx<0)continue;
+    var val=NaN;for(var i=0;i<rows[r].length;i++){if(i===lblIdx)continue;var v=parseNum(rows[r][i]);if(!isNaN(v)){val=v;break;}}
+    if(isNaN(val))continue;
+    if(esFemale(rows[r][lblIdx])){female+=val;hit=true;}
+    else if(esMale(rows[r][lblIdx])){male+=val;hit=true;}
+  }
+  if(hit&&(male>0||female>0))return {male:male,female:female};
+  return null;
+}
+function cargarGenero(input){
+  var f=input.files[0];if(!f)return;
+  leerArchivo(f,function(rows){
+    var res=detectarGenero(rows);
+    if(!res){var enc=((rows[0]||[]).join(' | ')||'(vacío)').slice(0,80);
+      estado('No reconocí género en "'+f.name+'". Encabezados vistos: '+enc,true);return;}
+    STATE.genero={male:res.male,female:res.female};marcarDrop('drop_gender',f.name);generarAnalisis();
+    estado('Género cargado: '+fmt(res.male)+' H / '+fmt(res.female)+' M.');
+  });
+}
+function parseSerieTiempo(rows){
+  var head=(rows[0]||[]).map(function(c){return (c||'').toLowerCase();});
+  var di=head.findIndex(function(c){return c.indexOf('date')>=0||c.indexOf('fecha')>=0||c.indexOf('hour')>=0||c.indexOf('hora')>=0||c.indexOf('time')>=0||c.indexOf('day')>=0||c.indexOf('d\u00eda')>=0;});
+  var ti=head.findIndex(function(c){return c.indexOf('total')>=0;});
+  if(ti<0)ti=head.length-1;if(di<0)di=0;
+  var serie=[];
+  for(var r=1;r<rows.length;r++){var d=(rows[r][di]||'').trim(),val=parseNum(rows[r][ti]);
+    if(!d||isNaN(val))continue;var dt=parseFecha(d);
+    serie.push({fecha:d,lbl:dt?etiquetaFecha(d):d,ts:dt?dt.getTime():r,val:val});}
+  serie.sort(function(a,b){return a.ts-b.ts;});
+  return serie;
+}
+function cargarDiario(input){
+  var f=input.files[0];if(!f)return;
+  leerArchivo(f,function(rows){
+    var serie=parseSerieTiempo(rows);
+    if(!serie.length){estado('No hallé filas de entrega por día.',true);return;}
+    STATE.diario=serie;marcarDrop('drop_diario',f.name);
+    estado('Entrega por día cargada: '+serie.length+' puntos.');
+  });
+}
+function cargarHora(input){
+  var f=input.files[0];if(!f)return;
+  leerArchivo(f,function(rows){
+    var serie=parseSerieTiempo(rows);
+    if(!serie.length){estado('No hallé filas de entrega por hora.',true);return;}
+    STATE.porHora=serie;marcarDrop('drop_extra',f.name);
+    estado('Entrega por hora cargada: '+serie.length+' franjas.');
+  });
+}
+function cargarOtro(input,t){var f=input.files[0];if(!f)return;
+  leerArchivo(f,function(rows){STATE.otros[t]=rows;marcarDrop('drop_extra',f.name);estado('Archivo extra recibido (se usará más adelante).');});}
+function marcarDrop(id,n){var d=document.getElementById(id);d.classList.add('ok');d.querySelector('.dt span').textContent=n;d.querySelector('.ic').textContent='✓';}
+function pintarTabla(){
+  var tb=document.getElementById('tbody');tb.innerHTML='';
+  STATE.filas.forEach(function(f,i){
+    var tr=document.createElement('tr');tr.className=(f.incluir?'':'off')+(f.flag?' flag':'');
+    tr.innerHTML='<td style="text-align:center"><input type="checkbox" class="chk" '+(f.incluir?'checked':'')+' onchange="toggleFila('+i+',this.checked)"></td>'+
+      '<td class="nom"><input type="text" value="'+escA(f.nombre)+'" oninput="renombrar('+i+',this.value)"></td>'+
+      '<td class="num">'+fmt(f.plays)+'</td><td class="num">'+fmt(f.impr)+'</td>'+
+      
+      '<td>'+(f.flag?'<span class="warn-pill" title="Muchas reproducciones y casi cero impresiones: posible cámara caída.">⚠ Medición caída</span>':'<span style="color:var(--ok);font-size:12px">✓ OK</span>')+'</td>';
+    tb.appendChild(tr);
+  });
+  document.getElementById('sec_cuadro').style.display='';actualizarTotales();pintarCuadro();
+}
+function escA(s){return String(s).replace(/"/g,'&quot;');}
+function toggleFila(i,v){STATE.filas[i].incluir=v;pintarTabla();generarAnalisis();recalcular();}
+function renombrar(i,v){STATE.filas[i].nombre=v;}
+function incluidas(){return STATE.filas.filter(function(f){return f.incluir;});}
+function actualizarTotales(){
+  var inc=incluidas();
+  var tp=inc.reduce(function(a,f){return a+f.plays;},0),ti=inc.reduce(function(a,f){return a+f.impr;},0);
+  var pe=inc.filter(function(f){return f.perm!=null;}),tpe=pe.length?pe.reduce(function(a,f){return a+f.perm;},0)/pe.length:NaN;
+  document.getElementById('t_plays').textContent=fmt(tp);
+  document.getElementById('t_impr').textContent=fmt(ti);
+  var q=document.getElementById('quality'),off=STATE.filas.length-inc.length,fl=STATE.filas.filter(function(f){return f.flag;}).length;
+  q.innerHTML='<span class="q">'+inc.length+' referencias incluidas</span>'+(off>0?'<span class="q">'+off+' excluidas</span>':'')+(fl>0?'<span class="q warn">⚠ '+fl+' con posible medición caída</span>':'');
+  return {tp:tp,ti:ti,tpe:tpe};
+}
+function getDias(){
+  var ini=document.getElementById('f_inicio').value,fin=document.getElementById('f_fin').value;
+  if(ini&&fin){var d=Math.round((new Date(fin)-new Date(ini))/86400000)+1;document.getElementById('f_dias').value=(d>0?d+' días':'revisar fechas');return d;}
+  document.getElementById('f_dias').value='';return NaN;
+}
+function recalcular(){
+  var dias=getDias(),unidades=parseInt(document.getElementById('f_unidades').value,10);
+  var tot=STATE.filas.length?actualizarTotales():{tp:NaN};
+  var cont=document.getElementById('cumpl'),vac=document.getElementById('cumpl_vacio');
+  if(!(unidades>0)||!(dias>0)||isNaN(tot.tp)){cont.style.display='none';vac.style.display='';}
+  else{var garTot=incluidas().reduce(function(a,f){return a+garantEstacion(f);},0);
+    var promAuto=garTot>0?garTot:CONFIG.SALIDAS_DIA_UNIDAD*unidades*dias,pi=document.getElementById('c_prom');
+    if(!STATE.promManual)pi.value=agrupar(String(promAuto));
+    var entregado=tot.tp||num('k_plays');
+    var prom=parseNum(pi.value)||promAuto,pct=prom>0?entregado/prom*100:NaN,diff=entregado-prom;
+    document.getElementById('c_ent').textContent=fmt(entregado);
+    document.getElementById('c_pct').textContent=isNaN(pct)?'—':Math.round(pct)+'%';
+    document.getElementById('c_extra').textContent=(diff>=0?'+'+fmt(diff)+' salidas de valor agregado':fmt(diff)+' salidas por debajo');
+    vac.style.display='none';cont.style.display='';}
+  document.getElementById('btn_pdf').disabled=!(unidades>0&&dias>0&&STATE.filas.length>0);
+  actualizarTarifaBox(dias,unidades);
+  pintarCuadro();
+}
+function editProm(){var v=parseNum(document.getElementById('c_prom').value);STATE.promManual=(!isNaN(v)&&v>0);recalcular();}
+/* ===================== CUADRO CUANTITATIVO (CPM, interno) ===================== */
+function tarifaEstacion(f){if(f.tarifa!=null)return f.tarifa;var c=matchEstacion(f.nombre);return c&&c.tar?c.tar:0;}
+function garantEstacion(f){if(f.garant!=null)return f.garant;var d=getDias();return d>0?CONFIG.SALIDAS_DIA_UNIDAD*d:0;}
+function cuadroFila(f){
+  var tar=tarifaEstacion(f),gar=garantEstacion(f),spot=f.plays||0,impr=f.impr||0;
+  return {tar:tar,gar:gar,spot:spot,impr:impr,mult:spot>0?impr/spot:0,optim:gar>0?(spot-gar)/gar:0,cpi:impr>0?tar/impr:0,cpm:impr>0?tar/impr*1000:0};
+}
+function pesos2(v){return '$'+v.toFixed(2).replace('.',',').replace(/\B(?=(\d{3})+(?!\d))/g,'.');}
+function pintarCuadro(){
+  var tb=document.getElementById('cuadro_body');if(!tb)return;
+  var inc=incluidas(),sec=document.getElementById('sec_cpm');
+  if(!inc.length){if(sec)sec.style.display='none';return;}
+  if(sec)sec.style.display='';tb.innerHTML='';
+  var T={tar:0,gar:0,spot:0,impr:0};
+  STATE.filas.forEach(function(f,i){
+    if(!f.incluir)return;var d=cuadroFila(f);T.tar+=d.tar;T.gar+=d.gar;T.spot+=d.spot;T.impr+=d.impr;
+    var tr=document.createElement('tr');
+    tr.innerHTML='<td class="cq-nom">'+escA(f.nombre)+'</td>'+
+      '<td><input class="cq" type="text" value="'+agrupar(String(Math.round(d.tar)))+'" oninput="editCuadro('+i+',\'tarifa\',this.value)"></td>'+
+      '<td><input class="cq" type="text" value="'+agrupar(String(Math.round(d.gar)))+'" oninput="editCuadro('+i+',\'garant\',this.value)"></td>'+
+      '<td class="num">'+fmt(d.spot)+'</td><td class="num">'+fmt(d.impr)+'</td>'+
+      '<td class="num">'+fmt1(d.mult)+'</td>'+
+      '<td class="num '+(d.optim>=0?'pos':'neg')+'">'+(d.optim>=0?'+':'')+fmt1(d.optim*100)+'%</td>'+
+      '<td class="num">'+pesos2(d.cpi)+'</td><td class="num">'+fmtCOP(d.cpm)+'</td>';
+    tb.appendChild(tr);
+  });
+  var tm=T.spot>0?T.impr/T.spot:0,to=T.gar>0?(T.spot-T.gar)/T.gar:0,tci=T.impr>0?T.tar/T.impr:0;
+  document.getElementById('cuadro_foot').innerHTML='<td>Total</td><td class="num">'+fmtCOP(T.tar)+'</td><td class="num">'+fmt(T.gar)+'</td><td class="num">'+fmt(T.spot)+'</td><td class="num">'+fmt(T.impr)+'</td><td class="num">'+fmt1(tm)+'</td><td class="num '+(to>=0?'pos':'neg')+'">'+(to>=0?'+':'')+fmt1(to*100)+'%</td><td class="num">'+pesos2(tci)+'</td><td class="num">'+fmtCOP(tci*1000)+'</td>';
+}
+function editCuadro(i,campo,val){STATE.filas[i][campo]=parseNum(val);pintarCuadro();}
+function exportarCuadroExcel(){
+  if(typeof XLSX==='undefined'){alert('No se pudo cargar el exportador.');return;}
+  var inc=incluidas();if(!inc.length){alert('Carga primero los datos de la campaña.');return;}
+  var H=['','Site','Tarifa Publicada','Spot Garantizados','# SPOT','IMPRESSIONS','Multiplicador Impresiones','OPTIMIZACIÓN SPOT','CPI (COSTO X IMPRESSIONS)','CPM (COSTO X MIL IMPRESSIONS)'];
+  var aoa=[[],[],[],H],T={tar:0,gar:0,spot:0,impr:0};
+  inc.forEach(function(f){var d=cuadroFila(f);T.tar+=d.tar;T.gar+=d.gar;T.spot+=d.spot;T.impr+=d.impr;
+    aoa.push(['',f.nombre,d.tar,d.gar,d.spot,d.impr,d.mult,d.optim,d.cpi,d.cpm]);});
+  var tm=T.spot>0?T.impr/T.spot:0,to=T.gar>0?(T.spot-T.gar)/T.gar:0,tci=T.impr>0?T.tar/T.impr:0;
+  aoa.push(['','Total',T.tar,T.gar,T.spot,T.impr,tm,to,tci,tci*1000]);
+  var wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(aoa),'PANTALLA');
+  var taoa=[['','SITE','ABREVIATURA','TARIFA']];
+  (CONFIG.CIRCUITO||[]).forEach(function(c){taoa.push(['',c.n,'',c.tar]);});
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(taoa),'Tarifario');
+  XLSX.writeFile(wb,'Cuadro cuantitativo '+((gv('f_cliente')||'campaña').trim())+'.xlsx');
+}
+function actualizarTarifaBox(dias,un){
+  var box=document.getElementById('f_diaria');if(!box)return;
+  var tarifa=num('f_tarifa'),custom=document.getElementById('f_tipo').value==='custom';
+  if(!(tarifa>0)){box.innerHTML='Completa la tarifa mensual.';return;}
+  var diaria=tarifa/30;
+  var txt='Tarifa por día'+(custom?' (paquete)':' (por unidad)')+': <b>'+fmtCOP(diaria)+'</b>';
+  if(dias>0&&un>0){var valor=custom?diaria*dias:diaria*dias*un;
+    txt+='<br>Valor de lista de la pauta ('+dias+' día'+(dias>1?'s':'')+(custom?'':' × '+un+' u')+'): <span class="big">'+fmtCOP(valor)+'</span>';}
+  else{txt+='<br><span style="color:#9AA3AE">Faltan días y unidades para el valor total.</span>';}
+  box.innerHTML=txt;
+}
+function generoPct(){if(!STATE.genero)return null;var t=STATE.genero.male+STATE.genero.female;if(t<=0)return null;return {h:STATE.genero.male/t*100,m:STATE.genero.female/t*100};}
+function generarAnalisis(force){
+  var ta=document.getElementById('f_analisis');
+  if(ta.value.trim()!=='' && !force && ta.dataset.auto!=='1') return;
+  var cli=document.getElementById('f_cliente').value||'la campaña';
+  var ini=document.getElementById('f_inicio').value,fin=document.getElementById('f_fin').value;
+  var tot=STATE.filas.length?actualizarTotales():{tp:NaN,ti:NaN,tpe:NaN};
+  var g=generoPct(),fchas=(ini&&fin)?('entre el '+fechaTxt(ini)+' y el '+fechaTxt(fin)):'';
+  var p=[];
+  var impr=num('k_impr')||tot.ti;
+  p.push('La campaña '+cli+(fchas?', desarrollada '+fchas+',':'')+' tuvo presencia en el circuito DOOH del Metro de Medellín'+(isNaN(impr)||!impr?'.':', alcanzando un total de '+fmt(impr)+' impresiones.'));
+  if(g)p.push('La audiencia se compuso en un '+fmt1(g.m)+'% de mujeres y un '+fmt1(g.h)+'% de hombres.');
+  if(!isNaN(tot.tpe))p.push('El tiempo promedio de permanencia fue de '+fmt1(tot.tpe)+' segundos, un indicador favorable de exposición.');
+  var m=metricas();
+  if(m.frecuencia!=null&&m.alcance!=null){p.push('Se alcanzó a '+fmt(m.alcance)+' personas distintas, con una frecuencia media de '+fmt1(m.frecuencia)+' impactos por persona.');}
+  var dias=getDias(),un=parseInt(document.getElementById('f_unidades').value,10);
+  if(dias>0&&un>0&&!isNaN(tot.tp)){var prom=CONFIG.SALIDAS_DIA_UNIDAD*un*dias,pct=Math.round(tot.tp/prom*100);
+    p.push('Se entregaron '+fmt(tot.tp)+' reproducciones frente a '+fmt(prom)+' garantizadas, logrando un cumplimiento del '+pct+'%.');}
+  ta.value=p.join('\n\n');ta.dataset.auto='1';
+  ta.oninput=function(){ta.dataset.auto='0';};
+}
+
+/* ===================== ANÁLISIS CON IA (Gemini) ===================== */
+var CEREBRO=`Eres un analista senior de medios DOOH (publicidad exterior digital) de i·Co medios, la comercializadora del Circuito Digital del Metro de Medellín. Llevas años leyendo datos de audiencia de Quividi y explicándoselos a clientes y agencias. Tu trabajo: escribir el ANÁLISIS de un informe de cierre de campaña, en español de Colombia, profesional pero cercano, listo para que el cliente lo lea.
+
+CONOCIMIENTO DEL CIRCUITO (úsalo para interpretar, nunca para inventar cifras):
+- El circuito son pantallas LED y Megamupis dentro de estaciones del Metro de Medellín (líneas A, B y metrocables). Audiencia masiva, cautiva, en movimiento diario. Mayoría estratos 1-3; estaciones premium (Poblado, Envigado, San Antonio, Industriales) suben a 4-5.
+- Tipos de pantalla y tarifa de lista mensual por unidad (cupo completo): MM (Megamupi vertical) $4.500.000; AA / PG Estándar (gran formato) $10.500.000; AAA (premium, estaciones de alto tráfico) $15.000.000. La tarifa por día es la mensual ÷ 30.
+- Un cupo completo entrega 14.040 salidas/mes (468 salidas/día por unidad). El cumplimiento compara las reproducciones reales entregadas contra esas salidas garantizadas.
+- Estaciones clave y su perfil: San Antonio (hub central A-B, el mayor flujo de la red, mezcla todo); Poblado (zona empresarial premium, NSE 4-5, poder de compra); Niquía/Bello (norte popular masivo); Estrella (sur, fin de línea); Envigado (satélite NSE 3-4); Estadio (cobra vida en partidos, audiencia masculina 18-45); Universidad/Hospital (público universitario y de salud); Acevedo (transferencia con metrocables K y P).
+
+CÓMO LEER LAS MÉTRICAS:
+- Emisiones: veces que salió el contenido. Impresiones: personas con oportunidad de ver (audiencia medida por sensor). Permanencia: segundos promedio frente a la pantalla. Frecuencia (OTS) = impresiones ÷ alcance = cuántas veces vio cada persona. CPM = costo por mil impresiones, sobre la tarifa de lista.
+
+RANGOS DE REFERENCIA (orientativos, NO leyes; si algo se sale, señálalo como "vale la pena revisar", no como veredicto):
+- Permanencia sana: ~6 a 12 segundos. Menos de 5s = poca atención.
+- Frecuencia (OTS) para campañas de 2-4 semanas: ~3 a 8 veces es saludable. Por encima de ~12 sugiere alcance bajo o saturación (conviene rotar creatividad).
+- CPM del circuito con medición sana: suele moverse en decenas de miles de pesos bajos. Un CPM muy alto (cientos de miles) casi siempre significa que las impresiones quedaron SUBCONTADAS (cámara con falla, sensor caído), no que la campaña fue cara. Si ves un CPM desproporcionado, sugiere con tacto validar la medición antes de sacar conclusiones.
+- Cumplimiento: 100% es lo prometido; por encima es valor agregado; por debajo hay que explicarlo.
+
+REGLAS ESTRICTAS:
+- NUNCA uses en el texto los códigos de clasificación de pantalla (AAA, PG, MM) ni cites 'estrato' con su número crudo. Habla en lenguaje del cliente: 'la pantalla', 'la estación' o 'el Megamupi', y describe su carácter en palabras (una zona premium de alto poder adquisitivo, una estación masiva de alto flujo), nunca con siglas.
+- Cuando la entrega supere lo garantizado, DESTACA el valor agregado como argumento comercial: cuántas salidas de más recibió el cliente sin costo extra (la optimización de la pauta), con la cifra que lo prueba. Es un punto de venta clave; intégralo con naturalidad. Si fue exactamente lo pactado, dilo como cumplimiento pleno; si quedó por debajo, explícalo con tacto.
+- NUNCA inventes, recalcules ni cambies un número. Usa SOLO las cifras que te entrego (ya están calculadas y verificadas). Si un dato no está, no lo menciones.
+- NO escribas una carta. Prohibido empezar con "Estimados", "Estimado equipo", "Con gusto les presentamos", saludos, encabezados o despedidas. El informe ya tiene portada con el cliente y las fechas: tu texto es SOLO el análisis, arranca directo en la lectura de los resultados (ej. "La campaña logró…", "El comportamiento de la audiencia muestra…").
+- Tono: fresco y profesional, claro y con seguridad, como un buen ejecutivo de cuenta que conoce su producto y habla de frente. Ni acartonado ni de oficina antigua, pero sin tutear al cliente ni caer en informalidad: trato neutro (sin "usted/ustedes" forzado ni "tú"). Frases directas, con criterio.
+- ANALIZA, no narres. La diferencia clave: no basta con decir "generó 203.931 impresiones"; di qué SIGNIFICA ese número. Interpreta las RELACIONES entre métricas que te doy: qué implican los espectadores por reproducción (cuánta gente ve cada pase), qué dice la frecuencia sobre saturación o recordación, qué revela la permanencia sobre la atención y la creatividad, qué tan eficiente fue el cumplimiento. Cada párrafo debe dejar un "esto quiere decir que…".
+- Sé concreto y cuantitativo. Usa los números para sustentar cada lectura. Compara entre estaciones cuando te doy el desempeño por referencia: señala cuál rindió mejor y cuál peor, y arriésgate a una hipótesis del porqué. Cuando te doy el PERFIL del circuito de una estación (tipo AAA/PG/MM, estrato dominante, impresiones potenciales), úsalo para dar contexto real: una estación AAA como El Poblado llega a público de alto poder adquisitivo; una masiva como Niquía o Itagüí entrega volumen y alcance amplio. Eso enriquece el porqué del desempeño y orienta al cliente sobre a quién le habló su campaña.
+- PROHIBIDO el relleno de marketing genérico: nada de "se destacó por", "ideal para", "excelente desempeño", "alineado con los objetivos" si no lo sustentas con datos. Si vas a decir que algo es bueno o malo, dilo con la cifra que lo prueba y contra qué referencia.
+- Escribe para alguien que lee datos: que tu análisis le aporte a un analista, no solo a un cliente casual. Pero explica las implicaciones en español claro, sin jerga de Quividi sin traducir.
+- Escribe el análisis como EXACTAMENTE 4 viñetas, cada una un hallazgo clave y autoconclusivo de 1 a 2 frases. Empieza cada viñeta con '• ' (viñeta y espacio) y sepáralas con un salto de línea. Tú eres la analista experta: elige los 4 ángulos de mayor valor para el cliente. Entre ellos incluye sí o sí la RENTABILIDAD/optimización de la pauta con su valor en pesos, y un cruce de EMISIONES o impresiones con el perfil de audiencia (género y tipo de pantalla). Los otros dos, los que más aporten: la pantalla que mejor rindió y por qué, la calidad del impacto (apóyate en la permanencia, que sí se muestra, o explica en palabras la repetición del mensaje sobre la audiencia sin soltar cifras que no están en el informe), o una recomendación accionable y concreta. No te extiendas: denso, concreto y bien contado, sin relleno ni frases de marketing vacías. Nunca uses siglas de clasificación. Di siempre 'emisión/emisiones', nunca 'reproducción/reproducciones'.
+- SOLO cita cifras que estén A LA VISTA en el informe (los 4 KPIs, la tarjeta de cumplimiento con su optimización en pesos, la tabla de estaciones, el género y el perfil). Métricas derivadas como 'espectadores por emisión', 'espectadores por pase' o 'frecuencia' NO tienen casilla propia: por regla general NO las cites; si una aporta de verdad, explícala en la misma frase (qué es y de dónde sale), nunca sueltes el número solo.
+- NUNCA pongas dos métricas parecidas juntas (por ejemplo espectadores por emisión y frecuencia) sin aclarar en qué se diferencian: confunde al lector. Usa una sola.
+- Prohibido afirmar lo que NO medimos: 'recordación de marca', 'rango óptimo de atención', 'alta visibilidad', 'público cautivo garantizado', 'engagement'. Solo afirma lo que el dato prueba.
+- Prohibido apilar adjetivos de marketing ('alcance masivo de alto valor comercial') y frases de relleno ('lo que se traduce en', 'lo que aseguró', 'logrando'). Escribe seco, directo y concreto, como un analista humano, no como IA de marketing. Varía el largo y la estructura de las frases.
+- No repitas un concepto con dos nombres: optimización y valor agregado son lo mismo, dilo una vez.
+- La optimización / valor agregado se expresa SIEMPRE en salidas de más y su porcentaje; NUNCA en pesos ni en un valor monetario.
+- Si hay notas internas de calidad de dato (cámara caída), NO las pongas crudas en el texto del cliente; intégralas con tacto solo si es relevante.
+- Si te doy CAMPAÑAS ANTERIORES del mismo cliente, compara con criterio: señala si esta campaña mejoró o bajó frente a las pasadas (impresiones, CPM, cumplimiento, frecuencia) y qué tendencia se ve. Es uno de los puntos más valiosos para el cliente; intégralo natural en el análisis, no como lista.
+- Cierra con una idea de valor, no con "en conclusión" ni relleno. Cada frase aporta.`;
+
+function gv(id){var e=document.getElementById(id);return e?e.value:'';}
+function _normEst(s){return (s||'').toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^A-Z0-9 ]/g,' ').replace(/\s+/g,' ').trim();}
+function matchEstacion(nombre){
+  var nm=_normEst(nombre); if(!nm||!CONFIG.CIRCUITO)return null;
+  var best=null,bs=0;
+  CONFIG.CIRCUITO.forEach(function(c){
+    var toks=_normEst(c.n).split(' '),pri=toks[0];
+    if(pri.length<3||nm.indexOf(pri)<0)return;
+    var extra=toks.slice(1).filter(function(t){return t.length>2&&nm.indexOf(t)>=0;}).length;
+    var score=1000+extra*100+pri.length;
+    if(score>bs){bs=score;best=c;}
+  });
+  return best;
+}
+function perfilEstacion(c){
+  var tt={AAA:'premium (zona de alto poder adquisitivo)',PG:'gran formato (alto impacto visual)',MM:'masivo (alto flujo de pasajeros)'}[c.t]||c.t;
+  var p=tt; if(c.e!=null)p+=', estrato dominante '+c.e; if(c.i!=null)p+=', ~'+fmt(c.i)+' impresiones/día potenciales del circuito';
+  return p;
+}
+function perfilAudiencia(){
+  var inc=incluidas(),grp={AAA:0,PG:0,MM:0},total=0,estW=0,estN=0,premS=[],masS=[];
+  var usaImpr=inc.reduce(function(a,f){return a+(f.impr||0);},0)>0;
+  inc.forEach(function(f){
+    var c=matchEstacion(f.nombre);if(!c)return;var w=usaImpr?(f.impr||0):(f.plays||0);total+=w;
+    grp[c.t]=(grp[c.t]||0)+w;
+    if(c.e!=null){estW+=c.e*w;estN+=w;}
+    if(c.t==='AAA'){if(premS.indexOf(c.n)<0)premS.push(c.n);}else{if(masS.indexOf(c.n)<0)masS.push(c.n);}
+  });
+  if(total<=0)return null;
+  var prem=grp.AAA,mas=grp.PG+grp.MM;
+  return {premiumPct:Math.round(prem/total*100),masivoPct:Math.round(mas/total*100),
+          premS:premS,masS:masS,estratoProm:estN>0?estW/estN:null,total:total,base:usaImpr?'impresiones':'emisiones'};
+}
+function tituloEst(n){return n.split(' ').map(function(w){return w?w[0]+w.slice(1).toLowerCase():w;}).join(' ');}
+function frasePerfil(p){
+  if(!p)return '';
+  var pr=p.premS.slice(0,2).map(tituloEst).join(' y '),ma=p.masS.slice(0,2).map(tituloEst).join(' y ');
+  var s='';
+  if(p.premiumPct>0)s+='El '+p.premiumPct+'% de las '+p.base+' se generó en pantallas ubicadas en zonas de alto poder adquisitivo'+(pr?' ('+pr+')':'');
+  if(p.masivoPct>0)s+=(s?', y el ':'El ')+p.masivoPct+'% en estaciones de altísimo flujo de pasajeros'+(ma?' ('+ma+')':'');
+  return s+'.'+((p.premiumPct>0&&p.masivoPct>0)?' Son dos fortalezas complementarias del circuito: unas conectan con un público de mayor capacidad de compra, y otras aportan volumen y cobertura masiva.':'');
+}
+function recolectarDatos(){
+  var m=metricas(),tot=actualizarTotales();
+  var un=gv('f_unidades'),dias=getDias(),tipo=gv('f_tipo'),tarifa=num('f_tarifa'),g=generoPct();
+  var prom=CONFIG.SALIDAS_DIA_UNIDAD*parseInt(un||0,10)*(dias||0),entregado=num('k_plays')||tot.tp,pct=prom>0?Math.round(entregado/prom*100):0;
+  var L=[];
+  L.push('Cliente: '+(gv('f_cliente')||'(sin nombre)'));
+  L.push('Campaña: '+(gv('f_campana')||'(sin nombre)'));
+  L.push('Periodo: '+(gv('f_inicio')||'?')+' a '+(gv('f_fin')||'?')+' ('+(dias||'?')+' días)');
+  L.push('Unidades: '+(un||'?')+' · tipo de pantalla: '+tipo);
+  L.push('Emisiones: '+(gv('k_plays')||'—'));
+  L.push('Impresiones: '+(gv('k_impr')||'—'));
+  L.push('Permanencia media: '+(gv('k_dwell')||'—')+' s');
+  if(m.frecuencia!=null)L.push('Frecuencia media (OTS): '+fmt1(m.frecuencia)+'x');
+  if(m.impr>0&&m.plays>0)L.push('Espectadores promedio por reproducción: '+fmt1(m.impr/m.plays)+' (impresiones ÷ reproducciones)');
+  if(m.imprDia!=null)L.push('Impresiones promedio por día: '+fmt(m.imprDia));
+  L.push('Cumplimiento: '+fmt(entregado)+' entregadas vs '+fmt(prom)+' garantizadas = '+pct+'%');var __v=entregado-prom;if(prom>0&&__v>0)L.push('Valor agregado (optimización): +'+fmt(__v)+' salidas por encima de lo garantizado (+'+fmt1(__v/prom*100)+'%), sin costo extra para el cliente.');else if(prom>0&&__v<0)L.push('Entrega por debajo de lo garantizado: '+fmt(-__v)+' salidas menos.');
+  if(g)L.push('Género: '+fmt1(g.h)+'% hombres / '+fmt1(g.m)+'% mujeres');
+  var inc=incluidas();
+  if(inc.length){
+    L.push('Contexto del circuito Metro (úsalo para interpretar, NO lo recites literal): el circuito mezcla pantallas premium en zonas de alto poder adquisitivo (El Poblado, Envigado) con estaciones masivas de altísimo flujo (Niquía, Itagüí, San Antonio). El estrato dominante (1 a 6) indica el nivel socioeconómico del entorno; a mayor estrato, mayor capacidad de compra.');
+    L.push('Desempeño por estación (con perfil del circuito):');
+    inc.forEach(function(f){
+      var c=matchEstacion(f.nombre),ctx=c?' [perfil: '+perfilEstacion(c)+']':'';
+      L.push('  · '+f.nombre+': '+fmt(f.plays)+' reprod, '+fmt(f.impr)+' impr'+(f.perm!=null?', '+fmt1(f.perm)+'s':'')+ctx);
+    });
+  }
+  var fl=STATE.filas.filter(function(f){return f.flag;});
+  if(fl.length)L.push('NOTA INTERNA (no para el cliente): '+fl.length+' referencia(s) excluidas por posible cámara caída.');
+  return 'Genera el análisis de cierre con estos datos ya calculados:\n\n'+L.join('\n');
+}
+function estadoIA(m,e){var x=document.getElementById('estado_ia');if(x){x.textContent=m;x.style.color=e?'#C0392B':'var(--lima-osc)';}}
+function guardarKey(){try{var k=document.getElementById('f_gemini_key').value.trim();if(k)localStorage.setItem('ico_gemini_key',k);else localStorage.removeItem('ico_gemini_key');}catch(e){}}
+function verKey(btn){var f=document.getElementById('f_gemini_key');if(f.type==='password'){f.type='text';btn.textContent='Ocultar';}else{f.type='password';btn.textContent='Ver';}}
+function borrarKey(){var f=document.getElementById('f_gemini_key');if(f)f.value='';try{localStorage.removeItem('ico_gemini_key');}catch(e){}estadoVision&&estadoVision('Key borrada de este navegador.');}
+function restaurarKey(){try{var k=localStorage.getItem('ico_gemini_key');if(k){var f=document.getElementById('f_gemini_key');if(f)f.value=k;}}catch(e){}}
+
+/* ===================== MEMORIA HISTÓRICA (localStorage) ===================== */
+function cargarHistorial(){try{return JSON.parse(localStorage.getItem('ico_campanas')||'[]');}catch(e){return [];}}
+function guardarHistorialArr(a){try{localStorage.setItem('ico_campanas',JSON.stringify(a));}catch(e){}}
+function snapshotCampana(){
+  var m=metricas(),tot=actualizarTotales(),un=parseInt(gv('f_unidades'),10)||0,dias=getDias()||0,g=generoPct();
+  var prom=CONFIG.SALIDAS_DIA_UNIDAD*un*dias,pct=prom>0?Math.round(tot.tp/prom*100):0;
+  return {id:Date.now(),guardado:new Date().toISOString(),
+    cliente:gv('f_cliente')||'(sin nombre)',campana:gv('f_campana')||'',ini:gv('f_inicio'),fin:gv('f_fin'),
+    dias:dias,unidades:un,tipo:gv('f_tipo'),
+    plays:tot.tp,impr:tot.ti,views:num('k_views')||null,dwell:num('k_dwell')||null,
+    frecuencia:m.frecuencia,alcance:m.alcance,cpm:m.cpm,valorTarifa:m.valorTarifa,
+    prometido:prom,entregado:tot.tp,cumplimiento:pct,genero:g?{h:g.h,m:g.m}:null};
+}
+function guardarEnHistorial(){
+  if(!STATE.filas.length){estado('Carga primero una campaña para guardarla.',true);return;}
+  var arr=cargarHistorial();arr.unshift(snapshotCampana());if(arr.length>200)arr=arr.slice(0,200);
+  guardarHistorialArr(arr);pintarHistorial();estado('Campaña guardada en el historial ('+arr.length+' en total).');
+}
+function borrarHistorial(id){
+  if(!confirm('¿Borrar esta campaña del historial?'))return;
+  guardarHistorialArr(cargarHistorial().filter(function(c){return c.id!=id;}));pintarHistorial();
+}
+function pintarHistorial(){
+  var arr=cargarHistorial(),cont=document.getElementById('hist_lista'),vac=document.getElementById('hist_vacio');
+  if(!cont)return;
+  if(!arr.length){cont.innerHTML='';if(vac)vac.style.display='';return;}
+  if(vac)vac.style.display='none';
+  var rows=arr.map(function(c){
+    var per=(c.ini||'').slice(0,10)+(c.fin?' → '+(c.fin||'').slice(0,10):'');
+    return '<tr><td class="cli">'+escA(c.cliente)+(c.campana?'<div style="font-weight:400;color:#7A828C;font-size:11px">'+escA(c.campana)+'</div>':'')+'</td>'+
+      '<td>'+per+'</td>'+
+      '<td class="n">'+fmt(c.plays)+'</td>'+
+      '<td class="n">'+fmt(c.impr)+'</td>'+
+      '<td class="n">'+(c.cpm!=null?fmtCOP(c.cpm):'—')+'</td>'+
+      '<td class="n">'+(c.cumplimiento||0)+'%</td>'+
+      '<td style="text-align:right"><button class="hist-del" onclick="borrarHistorial('+c.id+')">Borrar</button></td></tr>';
+  }).join('');
+  cont.innerHTML='<div style="overflow-x:auto"><table class="hist-tbl"><thead><tr><th>Cliente / campaña</th><th>Periodo</th><th class="n">Reprod.</th><th class="n">Impresiones</th><th class="n">CPM</th><th class="n">Cumpl.</th><th></th></tr></thead><tbody>'+rows+'</tbody></table></div>';
+}
+function getKey(){return ((document.getElementById('f_gemini_key')||{}).value||CONFIG.GEMINI_KEY||'').trim();}
+async function geminiFetch(modelo,body){
+  var key=getKey();
+  var url='https://generativelanguage.googleapis.com/v1beta/models/'+modelo+':generateContent?key='+encodeURIComponent(key);
+  var resp=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  var data=await resp.json();
+  if(!resp.ok){var err=new Error((data&&data.error&&data.error.message)||('HTTP '+resp.status));err.status=resp.status;throw err;}
+  var parts=(((data.candidates||[])[0]||{}).content||{}).parts||[];
+  var txt=parts.map(function(p){return p.text||'';}).join('').trim();
+  if(!txt)throw new Error('el modelo no devolvió texto (¿bloqueado por filtros o cuota?).');
+  return txt;
+}
+async function geminiConFallback(body){
+  var modelos=(CONFIG.GEMINI_MODELS&&CONFIG.GEMINI_MODELS.length)?CONFIG.GEMINI_MODELS:['gemini-3.6-flash'];
+  var ultimo='';
+  for(var i=0;i<modelos.length;i++){
+    try{ var t=await geminiFetch(modelos[i],body); return {modelo:modelos[i],texto:t}; }
+    catch(e){ ultimo=e.message||String(e);
+      var fatal=/api key|api_key|invalid argument|permission|denied|forbidden/i.test(ultimo)&&!/quota|exceeded|not found|404|429/i.test(ultimo);
+      if(fatal)break; /* key mala: no probar otros modelos */
+    }
+  }
+  throw new Error(ultimo||'falló la llamada');
+}
+function mensajeErrorIA(msg){
+  var m;
+  if(/fetch|network|load failed/i.test(msg)) m='no hubo conexión (revisa internet; si abriste el archivo local y falla, puede ser CORS — ábrelo en Chrome/Edge actualizado).';
+  else if(/quota|exceeded|429|limit: 0/i.test(msg)) m='topó cuota o el modelo no tiene capa gratis para tu proyecto.';
+  else if(/not found|404/i.test(msg)) m='el modelo no está disponible para tu proyecto (edita CONFIG.GEMINI_MODELS).';
+  else if(/invalid argument|invalid_argument/i.test(msg)) m='el modelo rechazó un parámetro de la petición.'; else if(/api.?key|permission|restrict|blocked|referer|referrer|unregistered/i.test(msg)) m='Google rechazó la key o el proyecto.';
+  else return msg;
+  return m+' — Texto exacto de Google: “'+msg+'”';
+}
+async function generarAnalisisIA(){
+  if(!getKey()){estadoIA('Pega tu API key de Gemini arriba (en el importador) para activar el análisis.',true);return;}
+  if(!STATE.filas.length){estadoIA('Primero carga o lee una campaña.',true);return;}
+  var btn=document.getElementById('btn_ia');btn.disabled=true;var lbl=btn.textContent;btn.textContent='Analizando…';
+  estadoIA('Consultando al analista IA…');
+  try{
+    var r=await geminiConFallback({
+      systemInstruction:{parts:[{text:CEREBRO}]},
+      contents:[{role:'user',parts:[{text:recolectarDatos()}]}],
+      generationConfig:{maxOutputTokens:2000,thinkingConfig:{thinkingLevel:'low'}}
+    });
+    var ta=document.getElementById('f_analisis');ta.value=r.texto;ta.dataset.auto='0';
+    estadoIA('Análisis generado con '+r.modelo+'. Revísalo y edítalo antes del PDF.');
+  }catch(e){ estadoIA('No se pudo generar con IA: '+mensajeErrorIA(e.message||String(e))+' Se mantiene el borrador automático.',true); }
+  finally{ btn.disabled=false;btn.textContent=lbl; }
+}
+
+/* ============ LEER SCREENSHOTS DE QUIVIDI (IA visión) ============ */
+var PROMPT_VISION='Eres un extractor de datos. Te doy una o varias capturas del panel de Quividi (analítica DOOH). Para CADA imagen identifica qué muestra y extrae los números EXACTOS que ves; no inventes ni estimes; si un dato no está, ponlo en null.\\n\\nDevuelve ÚNICAMENTE un arreglo JSON (sin texto ni markdown), un objeto por imagen en el orden recibido, con esta forma:\\n[{"tipo":"kpis|genero|diario|contenido|desconocido","kpis":{"plays":num|null,"impresiones":num|null,"vistas_unicas":num|null,"permanencia_seg":num|null},"genero":{"hombres":num|null,"mujeres":num|null},"diario":[{"fecha":"texto","valor":num}],"contenido":[{"nombre":"texto","plays":num|null,"impresiones":num|null,"permanencia_seg":num|null}]}]\\n\\nReglas:\\n- kpis: tarjetas Total number of plays, Impressions, Unique sessions, Avg. dwell time (o equivalentes en español). Toma el número GRANDE, NUNCA el porcentaje de variación (ej. +381.4%).\\n- genero: tarjeta/gráfica Male/Female (Hombres/Mujeres). Pueden ser conteos o porcentajes; pásalos tal cual.\\n- diario: gráfica de barras por día. Lista cada barra con su fecha/etiqueta y su valor si es legible.\\n- contenido: tabla por contenido/estación con plays e impresiones por fila.\\n- Números con separador de miles (12,662 o 12.662) devuélvelos como entero sin separador (12662). La permanencia puede tener decimales (7.39).\\n- Incluye solo la clave del tipo que corresponde a cada imagen.';
+function archivoAB64(file){return new Promise(function(res,rej){var r=new FileReader();r.onload=function(){res(String(r.result).split(',')[1]);};r.onerror=function(){rej(new Error('no se pudo leer la imagen'));};r.readAsDataURL(file);});}
+function estadoVision(m,e){var x=document.getElementById('estado_vision');if(x){x.textContent=m;x.style.color=e?'#C0392B':'var(--lima-osc)';}}
+function resalta(el){if(!el)return;el.classList.remove('flash');void el.offsetWidth;el.classList.add('flash');}
+function aplicarExtraccion(arr){
+  var hechos=[];
+  arr.forEach(function(o){
+    if(!o||!o.tipo)return;
+    if(o.tipo==='kpis'&&o.kpis){var k=o.kpis,n=0;
+      if(k.plays!=null){var e=document.getElementById('k_plays');e.value=agrupar(String(k.plays));resalta(e);n++;}
+      if(k.impresiones!=null){var e2=document.getElementById('k_impr');e2.value=agrupar(String(k.impresiones));resalta(e2);n++;}
+      if(k.permanencia_seg!=null){var e4=document.getElementById('k_dwell');e4.value=String(k.permanencia_seg).replace('.',',');resalta(e4);n++;}
+      if(n)hechos.push('indicadores');
+    } else if(o.tipo==='genero'&&o.genero&&o.genero.hombres!=null&&o.genero.mujeres!=null){
+      STATE.genero={male:Number(o.genero.hombres),female:Number(o.genero.mujeres)};hechos.push('género');
+    } else if(o.tipo==='diario'&&o.diario&&o.diario.length){
+      var serie=o.diario.filter(function(d){return d&&d.valor!=null;}).map(function(d){var dt=parseFecha(d.fecha||'');return {fecha:d.fecha||'',lbl:etiquetaFecha(d.fecha||'')||(d.fecha||''),ts:dt?dt.getTime():0,val:Number(d.valor)};});
+      serie.sort(function(a,b){return a.ts-b.ts;});STATE.diario=serie;hechos.push('entrega diaria');
+    } else if(o.tipo==='contenido'&&o.contenido&&o.contenido.length){
+      var filas=o.contenido.filter(function(f){return f&&f.nombre;}).map(function(f){var pl=Number(f.plays)||0,im=Number(f.impresiones)||0,pe=(f.permanencia_seg!=null)?Number(f.permanencia_seg):null;var sus=!isNaN(im)&&(pl>=CONFIG.FLAG_PLAYS_MIN)&&(!(im>=pl*CONFIG.FLAG_RATIO));return {crudo:f.nombre,nombre:limpiarNombre(f.nombre),plays:pl,impr:im,perm:pe,incluir:!sus,flag:sus};});
+      if(filas.length){STATE.filas=filas;pintarTabla();hechos.push(filas.length+' estaciones');}
+    }
+  });
+  return hechos.length?('Cargué: '+hechos.join(', ')+'.'):'No reconocí datos útiles en las imágenes.';
+}
+async function leerScreenshots(files){
+  if(!files||!files.length)return;
+  if(!getKey()){estadoVision('Primero pega tu API key de Gemini arriba (en este mismo recuadro).',true);return;}
+  var btn=document.getElementById('btn_vision');if(btn)btn.disabled=true;
+  estadoVision('Leyendo '+files.length+' imagen(es) con IA…');
+  try{
+    var parts=[{text:PROMPT_VISION}];
+    for(var i=0;i<files.length;i++){var b64=await archivoAB64(files[i]);parts.push({inlineData:{mimeType:files[i].type||'image/png',data:b64}});}
+    var r=await geminiConFallback({contents:[{role:'user',parts:parts}],generationConfig:{maxOutputTokens:4000,responseMimeType:'application/json',thinkingConfig:{thinkingLevel:'low'}}});
+    var arr;try{arr=JSON.parse(r.texto);}catch(e){var mm=r.texto.match(/\[[\s\S]*\]/);arr=mm?JSON.parse(mm[0]):null;}
+    if(!arr||!arr.length)throw new Error('no pude interpretar los datos de la(s) imagen(es).');
+    var msg=aplicarExtraccion(arr);recalcular();
+    estadoVision(msg+' Leído con '+r.modelo+'. Revisa los campos resaltados y corrige si algo quedó mal.');
+  }catch(e){ estadoVision('No se pudo leer: '+mensajeErrorIA(e.message||String(e)),true); }
+  finally{ if(btn)btn.disabled=false; var inp=document.getElementById('f_shots');if(inp)inp.value=''; }
+}
+function fechaTxt(iso){var m=['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];var d=new Date(iso+'T00:00');return d.getDate()+' de '+m[d.getMonth()];}
+function pol(cx,cy,r,deg){var a=(deg-90)*Math.PI/180;return[cx+r*Math.cos(a),cy+r*Math.sin(a)];}
+function arcPath(cx,cy,R,r2,a0,a1){var s0=pol(cx,cy,R,a1),s1=pol(cx,cy,R,a0),s2=pol(cx,cy,r2,a0),s3=pol(cx,cy,r2,a1);var big=a1-a0<=180?0:1;
+  return 'M'+s0[0].toFixed(1)+' '+s0[1].toFixed(1)+' A'+R+' '+R+' 0 '+big+' 0 '+s1[0].toFixed(1)+' '+s1[1].toFixed(1)+' L'+s2[0].toFixed(1)+' '+s2[1].toFixed(1)+' A'+r2+' '+r2+' 0 '+big+' 1 '+s3[0].toFixed(1)+' '+s3[1].toFixed(1)+' Z';}
+function generoBloque(g){
+  var icoM='<svg viewBox="0 0 24 24"><path d="M13.1 5.6 L10.8 5.6 L10.0 5.1 L9.8 4.4 L9.8 1.4 L10.0 1.1 L10.6 1.0 L13.5 1.2 L14.1 1.5 L14.1 4.6 L13.7 5.3 L13.1 5.6 ZM13.8 23.0 L10.1 22.9 L10.1 16.6 L8.4 16.5 L8.0 16.2 L8.0 8.0 L8.4 7.2 L9.3 6.6 L14.5 6.6 L15.4 6.9 L15.9 7.8 L16.0 16.2 L15.6 16.5 L13.9 16.6 L13.9 22.8 L13.8 23.0 Z"/></svg>';
+  var icoF='<svg viewBox="0 0 24 24"><path d="M12.4 5.6 L11.1 5.4 L10.4 4.8 L10.1 4.4 L10.0 3.7 L10.0 2.0 L10.1 1.5 L10.5 1.2 L11.2 1.1 L13.1 1.3 L13.7 1.6 L14.1 2.1 L14.3 2.7 L14.3 3.6 L14.1 4.4 L13.3 5.2 L12.4 5.6 ZM13.8 23.0 L10.2 23.0 L10.0 22.7 L10.0 18.9 L7.8 18.8 L7.4 18.4 L11.3 7.1 L11.4 6.9 L11.8 6.6 L12.4 6.6 L12.7 7.0 L16.6 18.3 L16.5 18.6 L16.2 18.8 L14.0 18.9 L14.0 22.7 L13.8 23.0 Z"/></svg>';
+  return '<div class="gender-big">'+
+    '<div class="gbig m-card"><div class="gicon m">'+icoM+'</div><div class="gpct">'+fmt1(g.h)+'%</div><div class="glbl">Hombres</div></div>'+
+    '<div class="gbig f-card"><div class="gicon f">'+icoF+'</div><div class="gpct">'+fmt1(g.m)+'%</div><div class="glbl">Mujeres</div></div>'+
+    '</div><div class="gbar"><div class="gbm" style="width:'+g.h.toFixed(1)+'%"></div><div class="gbf" style="width:'+g.m.toFixed(1)+'%"></div></div>';
+}
+function donutGenero(g){var ah=g.h/100*360;
+  return '<svg viewBox="0 0 210 178" width="100%" style="max-width:215px;margin:0 auto;display:block">'+
+    '<path d="'+arcPath(105,90,76,48,0,ah)+'" fill="'+CONFIG.COLOR.azul+'"/>'+
+    '<path d="'+arcPath(105,90,76,48,ah,360)+'" fill="'+CONFIG.COLOR.lima+'"/>'+
+    '<text x="105" y="86" text-anchor="middle" font-size="11" fill="#5B6470">Hombres</text>'+
+    '<text x="105" y="106" text-anchor="middle" font-size="20" font-weight="800" fill="'+CONFIG.COLOR.azul+'">'+fmt1(g.h)+'%</text></svg>';}
+function barsDiario(serie,H){
+  H=H||162;
+  if(!serie||!serie.length)return '<div style="font-size:11px;color:#9AA3AE;padding:'+(H/3)+'px 0;text-align:center">Sin datos — carga el archivo.</div>';
+  var W=560,padL=44,padR=14,padT=12,padB=26;
+  var maxRaw=Math.max.apply(null,serie.map(function(d){return d.val;}));
+  function nice(x){if(x<=0)return 1;var e=Math.pow(10,Math.floor(Math.log(x)/Math.LN10)),f=x/e,nf=f<=1?1:f<=2?2:f<=2.5?2.5:f<=5?5:10;return nf*e;}
+  var ticks=4,step=nice(maxRaw/ticks),maxV=step*ticks||1;
+  var base=H-padB,plotH=H-padT-padB,plotW=W-padL-padR;
+  function abrevEje(v){if(v>=1000){var k=v/1000;return (Math.round(k*10)/10).toString().replace('.',',')+'K';}return String(Math.round(v));}
+  var yax='';
+  for(var t=0;t<=ticks;t++){var val=step*t,y=base-(val/maxV)*plotH;
+    yax+='<line x1="'+padL+'" y1="'+y.toFixed(1)+'" x2="'+(W-padR)+'" y2="'+y.toFixed(1)+'" stroke="'+(t===0?'#CFD6DE':'#EEF2F6')+'"/>';
+    yax+='<text x="'+(padL-6)+'" y="'+(y+3).toFixed(1)+'" text-anchor="end" font-size="8" fill="#9AA3AE">'+abrevEje(val)+'</text>';}
+  var n=serie.length,gap=plotW/n,bw=gap*0.66,bars='',labels='';
+  serie.forEach(function(d,i){var x=padL+i*gap+(gap-bw)/2,h=(maxV>0?d.val/maxV:0)*plotH,y=base-h;
+    bars+='<rect x="'+x.toFixed(1)+'" y="'+y.toFixed(1)+'" width="'+bw.toFixed(1)+'" height="'+h.toFixed(1)+'" rx="2" fill="'+CONFIG.COLOR.azul+'"/>';
+    if(n<=20||i%2===0){var dd=d.lbl||(d.fecha||'').slice(0,5);
+      labels+='<text x="'+(x+bw/2).toFixed(1)+'" y="'+(base+13)+'" text-anchor="middle" font-size="8.5" fill="#9AA3AE">'+dd+'</text>';}});
+  return '<svg viewBox="0 0 '+W+' '+(H+4)+'" width="100%">'+yax+bars+labels+'</svg>';}
+function ajustarPaginas(){
+  var pages=document.querySelectorAll('#reporte .page');
+  for(var i=0;i<pages.length;i++){
+    var pg=pages[i],anal=pg.querySelector('.r-analisis');
+    if(!anal)continue;
+    var box=pg.querySelector('.r-anal-box');
+    var fs=12.5,lh=1.68,pad=15,guard=0;
+    anal.style.fontSize=fs+'px';anal.style.lineHeight=lh;
+    while(pg.getBoundingClientRect().height>1124 && guard<160){
+      if(fs>9){fs-=0.25;}
+      else if(lh>1.42){lh-=0.01;}
+      else if(pad>7&&box){pad-=1;box.style.padding=pad+'px 18px';}
+      else break;
+      anal.style.fontSize=fs.toFixed(2)+'px';anal.style.lineHeight=lh.toFixed(3);
+      guard++;
+    }
+  }
+}
+function abrirInforme(){generarAnalisis();document.getElementById('reporte').innerHTML=construirReporte();document.getElementById('overlay').classList.add('show');ajustarPaginas();window.scrollTo(0,0);}
+async function descargarPDF(btn){
+  if(typeof html2canvas==='undefined'||typeof jspdf==='undefined'){window.print();return;}
+  var lbl=btn?btn.textContent:'';if(btn){btn.disabled=true;btn.textContent='Generando PDF…';}
+  try{
+    var pages=document.querySelectorAll('#reporte .page');
+    var pdf=new jspdf.jsPDF({unit:'mm',format:'a4',orientation:'portrait',compress:true});
+    for(var i=0;i<pages.length;i++){
+      var canvas=await html2canvas(pages[i],{scale:2,useCORS:true,backgroundColor:'#ffffff',logging:false,windowWidth:pages[i].offsetWidth,windowHeight:pages[i].offsetHeight});
+      var img=canvas.toDataURL('image/jpeg',0.94);
+      if(i>0)pdf.addPage();
+      pdf.addImage(img,'JPEG',0,0,210,297,'','FAST');
+    }
+    var nombre='Reporte '+((document.getElementById('f_cliente').value||'campaña').trim())+(document.getElementById('f_campana').value?' '+document.getElementById('f_campana').value.trim():'');
+    pdf.save(nombre+'.pdf');
+  }catch(e){alert('No se pudo generar el PDF automáticamente ('+(e.message||e)+'). Usa el botón "Imprimir" como alternativa.');}
+  finally{if(btn){btn.disabled=false;btn.textContent=lbl;}}
+}
+function cerrarInforme(){document.getElementById('overlay').classList.remove('show');}
+function kpi(icon,l,en,v,u){return '<div class="kpi"><div class="kp-h"><div class="kl">'+l+' · '+en+'</div><div class="kp-ic">'+ico(icon)+'</div></div><div class="kv">'+v+'</div><div class="ku">'+(u||'')+'</div></div>';}
+function insight(icon,val,label,explain,acc){return '<div class="ins'+(acc?' acc':'')+'"><div class="ic-wrap">'+ico(icon)+'</div><div class="iv">'+val+'</div><div class="il">'+label+'</div><div class="ix">'+explain+'</div></div>';}
+function gli(icon,t,d){return '<div class="gli"><div class="gic">'+ico(icon)+'</div><div><b>'+t+'</b><span>'+d+'</span></div></div>';}
+function construirReporte(){
+  var cli=document.getElementById('f_cliente').value||'—',camp=document.getElementById('f_campana').value||'';
+  var ini=document.getElementById('f_inicio').value,fin=document.getElementById('f_fin').value;
+  var dias=getDias(),un=parseInt(document.getElementById('f_unidades').value,10),tot=actualizarTotales();
+  function fmtKpi(v){var n=parseNum(v);return (v&&!isNaN(n))?fmt(n):(v||'');}
+  var kp=fmtKpi(document.getElementById('k_plays').value),ki=(tot.ti?fmt(tot.ti):fmtKpi(document.getElementById('k_impr').value)),kd=document.getElementById('k_dwell').value;
+  var garTot=incluidas().reduce(function(a,f){return a+garantEstacion(f);},0);
+  var promAuto=garTot>0?garTot:CONFIG.SALIDAS_DIA_UNIDAD*un*dias,promEd=parseNum(document.getElementById('c_prom').value);
+  var entregadoR=tot.tp||parseNum(document.getElementById('k_plays').value);
+  var prom=(!isNaN(promEd)&&promEd>0)?promEd:promAuto,pct=prom>0?Math.round(entregadoR/prom*100):0,diff=entregadoR-prom;
+  var g=generoPct(),m=metricas(),fechas=(ini&&fin)?(fechaTxt(ini)+' – '+fechaTxt(fin)):'—',hoy=new Date().toLocaleDateString('es-CO');
+  function head(){return '<div class="r-head"><img src="'+STATE.logo+'"><div class="rh"><b>i·Co medios</b><span>Informe de campaña · Circuito Digital Metro de Medellín</span></div><div class="rmeta">Generado: '+hoy+'</div></div>';}
+  function foot(p){return '<div class="r-foot"><span>i·Co medios</span><span>'+cli+(camp?' — '+camp:'')+'</span><span>Pág. '+p+' de 2</span></div>';}
+  function bt(icon,txt){
+    var BRAND={
+      metricas:'<path fill-rule="evenodd" d="M19.0 1.2 L19.4 1.4 L19.7 1.7 L19.7 2.3 L19.6 2.5 L19.3 2.8 L18.7 2.9 L18.5 2.8 L18.3 3.0 L15.0 6.9 L15.0 7.7 L14.7 8.2 L14.3 8.3 L13.6 8.2 L13.3 7.7 L13.2 7.2 L10.4 5.4 L9.9 5.8 L9.5 5.8 L9.2 5.5 L5.7 8.4 L5.8 8.8 L5.4 9.3 L4.8 9.3 L4.4 8.9 L4.4 8.5 L4.7 8.1 L5.2 8.0 L5.6 8.2 L5.7 8.1 L9.0 5.4 L9.2 4.7 L9.7 4.4 L10.0 4.4 L10.3 4.6 L10.5 5.2 L13.2 7.0 L13.9 6.5 L14.5 6.5 L14.9 6.8 L18.3 2.7 L18.1 2.2 L18.1 1.9 L18.4 1.4 L18.8 1.2 ZM19.0 2.7 L19.4 2.5 L19.5 1.9 L19.2 1.5 L18.8 1.4 L18.4 1.7 L18.3 2.2 L18.5 2.5 L18.4 2.0 L18.5 1.7 L18.7 1.6 L19.2 1.6 L19.4 1.9 L19.3 2.3 L19.1 2.5 L18.6 2.6 L19.0 2.7 ZM19.0 2.4 L19.2 2.0 L19.1 1.8 L18.8 1.7 L18.6 1.9 L18.6 2.2 L18.7 2.3 L18.9 2.0 L18.8 2.4 L19.0 2.4 ZM9.3 5.2 L9.8 4.8 L10.3 5.1 L10.0 4.6 L9.7 4.5 L9.3 4.8 L9.2 5.0 L9.3 5.2 ZM1.0 4.7 L1.6 4.7 L1.6 22.2 L23.0 22.2 ZM20.4 21.0 L17.5 21.0 L17.1 20.8 L17.1 5.2 L17.4 4.9 L20.5 5.3 L20.7 5.5 L20.7 20.7 L20.4 21.0 ZM9.9 5.6 L10.2 5.3 L9.8 5.0 L9.3 5.4 L9.5 5.6 L9.9 5.6 ZM13.6 7.2 L14.0 6.8 L14.3 6.8 L14.7 7.0 L14.7 6.9 L14.4 6.7 L14.0 6.6 L13.5 7.0 L13.5 7.2 L13.6 7.2 ZM14.2 8.2 L14.6 8.0 L14.9 7.7 L14.9 7.3 L14.8 7.1 L14.7 7.7 L14.3 8.0 L13.8 7.9 L13.4 7.4 L13.5 7.7 L13.7 8.0 L14.2 8.2 ZM11.0 21.0 L8.3 21.0 L8.0 20.9 L7.8 20.6 L7.8 8.3 L7.9 8.0 L8.2 7.8 L11.1 7.8 L11.4 8.1 L11.4 20.7 L11.0 21.0 ZM15.4 21.0 L12.8 21.0 L12.5 20.9 L12.3 20.6 L12.3 9.1 L12.7 8.7 L15.5 8.7 L15.8 8.9 L15.9 9.2 L15.9 20.5 L15.8 20.7 L15.4 21.0 ZM6.5 21.0 L3.8 21.0 L3.6 20.9 L3.4 20.6 L3.4 10.3 L3.6 10.0 L6.5 10.0 L6.7 10.1 L7.0 10.3 L7.0 20.7 L6.7 20.9 L6.5 21.0 Z"/>',
+      screen:'<path fill-rule="evenodd" d="M5.2 2.4 L5.3 1.8 L5.7 1.3 L6.2 1.0 L6.8 1.0 L17.8 1.7 L18.1 1.9 L18.5 2.2 L18.8 2.6 L18.8 3.0 ZM17.4 20.1 L17.4 3.1 L6.6 2.4 L6.6 20.1 L17.4 20.1 ZM16.0 18.5 L8.0 18.5 L7.8 18.3 L7.7 18.1 L7.7 4.4 L8.0 4.1 L8.3 4.0 L15.8 4.5 L16.1 4.6 L16.3 4.8 L16.3 5.0 L16.3 18.1 L16.2 18.3 L16.0 18.5 ZM9.0 23.0 L8.8 22.8 L8.8 21.5 L6.3 21.5 L6.1 21.4 L5.4 20.9 L5.2 20.5 L5.2 20.2 ZM18.8 20.2 L18.8 20.5 L18.6 20.9 L17.9 21.4 L17.7 21.5 L15.2 21.5 L15.2 22.8 L15.0 23.0 Z"/>',
+      elevator:'<path d="M6.4 1.6 L8.7 4.2 H7.2 V6.4 H5.6 V4.2 H4.1 Z"/><path d="M17.6 6.6 L15.3 4 H16.8 V1.8 H18.4 V4 H19.9 Z"/><path fill-rule="evenodd" d="M4 8 H20 A1.6 1.6 0 0 1 21.6 9.6 V20.4 A1.6 1.6 0 0 1 20 22 H4 A1.6 1.6 0 0 1 2.4 20.4 V9.6 A1.6 1.6 0 0 1 4 8 Z M5.6 10.2 V19.8 H11.2 V10.2 Z M12.8 10.2 V19.8 H18.4 V10.2 Z"/>',
+      mupi:'<path fill-rule="evenodd" d="M6 2 H18 A1.5 1.5 0 0 1 19.5 3.5 V18 A1.5 1.5 0 0 1 18 19.5 H6 A1.5 1.5 0 0 1 4.5 18 V3.5 A1.5 1.5 0 0 1 6 2 Z M7.6 4.6 H16.4 V16.9 H7.6 Z"/><rect x="10.4" y="19.5" width="3.2" height="2.5" rx=".4"/>'
+    };
+    var svg=BRAND[icon]?'<svg viewBox="0 0 24 24" class="bf">'+BRAND[icon]+'</svg>':ico(icon);
+    return '<div class="r-block-t"><span class="bt-ic">'+svg+'</span>'+txt+'</div>';
+  }
+
+  /* métricas derivadas — pausadas (depende del tema de precios); se reincluirán luego */
+
+  /* franja de cifras clave (derivadas) */
+  function rs(v,l){return '<div class="rs"><div class="v">'+v+'</div><div class="l">'+l+'</div></div>';}
+  var espPase=(num('k_impr')&&num('k_plays'))?fmt1(num('k_impr')/num('k_plays')):'—';
+  var stripHTML='<div class="r-sec r-strip">'+
+    rs(m.frecuencia!=null?fmt1(m.frecuencia)+'×':'—','Frecuencia media (OTS)')+
+    rs(espPase,'Espectadores por pase')+
+    rs(m.imprDia!=null?fmt(m.imprDia):'—','Impresiones por día')+'</div>';
+  /* semáforo de cumplimiento */
+  var cmCls=pct>=100?'ok':(pct>=85?'warn':'bad'),cmLbl=pct>=100?'Sobrecumplido':(pct>=85?'En meta':'Por debajo');
+
+  /* PÁGINA 1 — portada + todos los datos + gráficas */
+  var pg1='<div class="page">'+head()+'<div class="page-body">'+
+    '<div class="r-sec r-hero"><div class="r-hero-l"><div class="r-eyebrow">Informe de campaña</div><div class="r-title">'+cli+'</div><div class="r-sub">'+(camp?'Ref. '+camp+' · ':'')+fechas+' · '+(dias>0?dias+' días':'')+' · '+(un>0?un+(un==1?' elemento digital':' elementos digitales'):'')+'</div></div>'+
+      (ki?'<div class="r-hero-r"><div class="r-hr-v">'+ki+'</div><div class="r-hr-l">Impresiones</div>'+'</div>':'')+'</div>'+
+    '<div class="r-sec">'+bt('metricas','Indicadores principales')+'<div class="kpis">'+
+      kpi('play','Emisiones','Total spots',(tot.tp?fmt(tot.tp):(kp||'—')),'')+kpi('eye','Impresiones','Impressions',ki||'—','')+
+      kpi('clock','Permanencia','Avg. dwell time',(kd||'—'),'segundos')+'</div></div>'+
+    '<div class="r-sec">'+bt('target','Cumplimiento de emisiones')+'<div class="r-cumpl">'+
+      '<div class="rc"><div class="l">Garantizado</div><div class="v">'+fmt(prom)+'</div></div>'+
+      '<div class="rc"><div class="l">Entregado</div><div class="v">'+fmt(entregadoR)+'</div></div>'+
+      '<div class="rc hero"><div class="l">Cumplimiento</div><div class="v">'+pct+'%</div><span class="cm-pill '+cmCls+'">'+cmLbl+'</span><div class="x">'+(diff>=0?'+'+fmt(diff)+' salidas de valor agregado (+'+fmt1(diff/prom*100)+'%)':fmt(diff)+' por debajo')+'</div>'+'</div></div></div>'+
+    ((STATE.diario&&STATE.diario.length)||(STATE.porHora&&STATE.porHora.length)?
+      '<div class="r-sec">'+bt('cal','Impresiones')+'<div class="charts2">'+
+        '<div class="chart-card"><h4>Distribución de impresiones por día</h4><div class="chart-body">'+barsDiario(STATE.diario,178)+'</div></div>'+
+        '<div class="chart-card"><h4>Distribución de impresiones por hora</h4><div class="chart-body">'+barsDiario(STATE.porHora,178)+'</div></div>'+
+      '</div></div>':'')+
+    '</div>'+foot(1)+'</div>';
+
+  /* estación destacada (mayor volumen de impresiones) */
+  var inc=incluidas(),champ=inc.length?inc.reduce(function(a,b){return (b.impr||0)>(a.impr||0)?b:a;}):null;
+  var champC=champ?matchEstacion(champ.nombre):null;
+  function perfilCorto(c){var tt={AAA:'AAA · Premium',PG:'PG · Gran formato',MM:'MM · Masivo'}[c.t]||c.t;return tt+(c.e!=null?' · Estrato '+c.e:'');}
+  var champTag=champC?'<span class="rh-tag">'+perfilCorto(champC)+'</span>':'';
+  var champHTML=champ?'<div class="r-sec"><div class="r-highlight"><div class="rh-ic"><svg viewBox="0 0 24 24"><path fill-rule="evenodd" d="M1.0 6.5 L1.1 5.2 L1.3 4.9 L1.6 4.9 L22.4 7.1 L22.7 7.4 L22.9 8.0 L23.0 18.6 ZM20.8 19.1 L3.2 19.0 L2.9 18.7 L2.7 18.1 L2.6 7.7 L2.7 7.2 L2.9 7.0 L3.1 7.0 L20.8 8.6 L21.0 8.7 L21.2 8.9 L21.4 9.6 L21.4 18.0 L21.2 18.7 L21.0 19.0 L20.8 19.1 ZM12.0 8.0 L13.2 11.3 L16.8 11.5 L14.0 13.7 L15.0 17.1 L12.0 15.2 L9.0 17.1 L10.0 13.7 L7.2 11.5 L10.8 11.3 Z"/></svg></div><div><div class="rh-l">Estación destacada</div><div class="rh-v">'+escA(champ.nombre)+champTag+'</div><div class="rh-x">'+fmt(champ.impr)+' impresiones'+(champ.perm!=null?' · '+fmt1(champ.perm)+' s de permanencia':'')+'</div></div></div></div>':'';
+
+  /* PÁGINA 2 — análisis destacado + detalle por estación + glosario */
+  var pg2='<div class="page">'+head()+'<div class="page-body">'+
+    
+    
+    (function(){var pa=perfilAudiencia();
+      var perfilInner=pa?('<div class="rp-bar">'+
+        (pa.premiumPct>0?'<span class="rp-prem" style="width:'+pa.premiumPct+'%"></span>':'')+
+        (pa.masivoPct>0?'<span class="rp-mas" style="width:'+pa.masivoPct+'%"></span>':'')+'</div>'+
+        '<div class="rp-leg">'+
+        (pa.premiumPct>0?'<span><i class="rp-dot prem"></i>Poder adquisitivo <b>'+pa.premiumPct+'%</b></span>':'')+
+        (pa.masivoPct>0?'<span><i class="rp-dot mas"></i>Alto flujo <b>'+pa.masivoPct+'%</b></span>':'')+'</div>'+
+        '<div class="rp-txt">'+frasePerfil(pa)+(pa.estratoProm!=null?' Estrato promedio ponderado: '+fmt1(pa.estratoProm)+'.':'')+'</div>')
+        :'<div style="font-size:11px;color:#9AA3AE;padding:20px 0;text-align:center">Carga las estaciones para ver el perfil.</div>';
+      var genInner=g?generoBloque(g):'<div style="font-size:11px;color:#9AA3AE;padding:20px 0;text-align:center">Carga el archivo de género.</div>';
+      return '<div class="r-sec">'+bt('elevator','Audiencia impactada')+'<div class="charts2">'+
+        '<div class="chart-card"><h4>Perfil socioeconómico</h4><div class="chart-body">'+perfilInner+'</div></div>'+
+        '<div class="chart-card"><h4>Distribución por género</h4><div class="chart-body">'+genInner+'</div></div>'+
+      '</div></div>';
+    })()+
+    '<div class="r-sec">'+bt('screen','Salidas por estación')+
+    (function(){
+      var ic=incluidas();
+      var sumGar=ic.reduce(function(a,f){return a+garantEstacion(f);},0);
+      var head='<thead><tr><th>Estación</th><th>Tipo de elemento</th><th class="n">Emisiones garantizadas</th><th class="n">Emisiones entregadas</th></tr></thead>';
+      var fila=function(f){return '<tr><td>'+escA(f.nombre)+'</td><td>'+escA(f.tipoElem||'—')+'</td><td class="n">'+fmt(garantEstacion(f))+'</td><td class="n">'+fmt(f.plays)+'</td></tr>';};
+      if(ic.length<=12){
+        return '<table class="r-tbl">'+head+'<tbody>'+ic.map(fila).join('')+'</tbody><tfoot><tr><td>Total · '+ic.length+' estaciones</td><td></td><td class="n">'+fmt(sumGar)+'</td><td class="n">'+fmt(tot.tp)+'</td></tr></tfoot></table>';
+      }
+      var mid=Math.ceil(ic.length/2);
+      var half=function(rows){return '<table class="r-tbl est-half">'+head+'<tbody>'+rows.map(fila).join('')+'</tbody></table>';};
+      return '<div class="est-wrap">'+half(ic.slice(0,mid))+half(ic.slice(mid))+'</div>'+'<div class="est-tot2"><span>Total · '+ic.length+' estaciones</span><span>Garantizados '+fmt(sumGar)+'</span><span>Entregados '+fmt(tot.tp)+'</span></div>';
+    })()+
+    '</div>'+
+    '<div class="r-sec">'+bt('doc','Análisis de la campaña')+'<div class="r-anal-box"><div class="r-analisis">'+(document.getElementById('f_analisis').value||'Genera el análisis con IA o el borrador automático.').replace(/</g,'&lt;')+'</div></div></div>'+'<div class="r-sec">'+bt('book','Glosario')+'<div class="glist">'+
+      gli('play','Emisión<span class="glen"> · Plays</span>','Veces que el contenido salió al aire en la pantalla.')+gli('eye','Impresión<span class="glen"> · Impressions</span>','Personas o vehículos frente a la pantalla con oportunidad de ver el contenido.')+gli('clock','Permanencia<span class="glen"> · Dwell time</span>','Tiempo promedio que una persona estuvo frente a la pantalla.')+gli('cal','Impresiones por día y hora','Cómo se repartió la entrega a lo largo de la campaña: en qué días y franjas horarias se concentró el impacto.')+gli('target','Optimización<span class="glen"> · Valor agregado</span>','Emisiones entregadas por encima de lo garantizado, sin costo extra, y su valor en pesos.')+'</div></div>'+
+    '</div>'+foot(2)+'</div>';
+  return pg1+pg2;
+}
+function estado(m,e){var x=document.getElementById('estado');x.textContent=m;x.style.color=e?'#C0392B':'var(--gris-claro)';}
+function limpiarTodo(){if(confirm('¿Borrar los datos de la campaña actual? (El historial guardado NO se borra.)'))location.reload();}
+restaurarKey();
+
+</script>
+</body>
+</html>
